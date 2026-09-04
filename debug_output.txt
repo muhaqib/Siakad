@@ -1,0 +1,47 @@
+Mahasiswa: Budi Santoso
+ID: 1
+
+=== KRS Records ===
+KRS #1 - TahunAkademik ID: 4 - 2022/2023 Ganjil
+  KRS Detail Count: 7
+    - Kelas ID: 1, Kelas Tahun: 3
+    - Kelas ID: 2, Kelas Tahun: 3
+    - Kelas ID: 3, Kelas Tahun: 3
+    - Kelas ID: 4, Kelas Tahun: 3
+    - Kelas ID: 5, Kelas Tahun: 3
+    - Kelas ID: 6, Kelas Tahun: 3
+    - Kelas ID: 7, Kelas Tahun: 3
+KRS #2 - TahunAkademik ID: 5 - 2022/2023 Genap
+  KRS Detail Count: 7
+    - Kelas ID: 8, Kelas Tahun: 3
+    - Kelas ID: 9, Kelas Tahun: 3
+    - Kelas ID: 10, Kelas Tahun: 3
+    - Kelas ID: 11, Kelas Tahun: 3
+    - Kelas ID: 12, Kelas Tahun: 3
+    - Kelas ID: 13, Kelas Tahun: 3
+    - Kelas ID: 14, Kelas Tahun: 3
+KRS #3 - TahunAkademik ID: 1 - 2023/2024 Ganjil
+  KRS Detail Count: 7
+    - Kelas ID: 15, Kelas Tahun: 1
+    - Kelas ID: 16, Kelas Tahun: 1
+    - Kelas ID: 17, Kelas Tahun: 1
+    - Kelas ID: 18, Kelas Tahun: 1
+    - Kelas ID: 19, Kelas Tahun: 1
+    - Kelas ID: 20, Kelas Tahun: 1
+    - Kelas ID: 21, Kelas Tahun: 1
+KRS #4 - TahunAkademik ID: 2 - 2023/2024 Genap
+  KRS Detail Count: 7
+    - Kelas ID: 22, Kelas Tahun: 2
+    - Kelas ID: 23, Kelas Tahun: 2
+    - Kelas ID: 24, Kelas Tahun: 2
+    - Kelas ID: 25, Kelas Tahun: 2
+    - Kelas ID: 26, Kelas Tahun: 2
+    - Kelas ID: 27, Kelas Tahun: 2
+    - Kelas ID: 28, Kelas Tahun: 2
+
+=== Tahun Akademik ===
+ID: 1 - 2023/2024 Ganjil - Active: No
+ID: 2 - 2023/2024 Genap - Active: No
+ID: 3 - 2024/2025 Ganjil - Active: Yes
+ID: 4 - 2022/2023 Ganjil - Active: No
+ID: 5 - 2022/2023 Genap - Active: No

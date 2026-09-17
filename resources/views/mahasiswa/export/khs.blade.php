@@ -42,9 +42,14 @@
     <button class="print-btn" onclick="window.print()">🖨️ Cetak / PDF</button>
 
     <div class="header">
-        <h1>KULIM UNIVERSITY</h1>
-        <h2>{{ $mahasiswa->prodi->fakultas->nama_fakultas ?? 'FAKULTAS' }}</h2>
-        <p>Jl. Bukit Barisan No. 01 | Telp: 08123456789</p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 5px;">
+            <img src="{{ asset('logo.PNG') }}" alt="Logo STIT Mambaul Hikmah" style="height: 75px; width: auto; object-fit: contain;">
+            <div style="text-align: center;">
+                <h1 style="font-size: 15pt; font-weight: bold; margin-bottom: 4px; text-transform: uppercase;">Sekolah Tinggi Ilmu Tarbiyah (STIT) Mambaul Hikmah</h1>
+                <h2 style="font-size: 12pt; font-weight: 600; margin-bottom: 3px;">Program Studi {{ $mahasiswa->prodi->nama ?? $mahasiswa->prodi->nama_prodi ?? '-' }}</h2>
+                <p style="font-size: 10pt; color: #444;">Sistem Informasi Akademik (SIAKAD) &bull; Tegal, Jawa Tengah</p>
+            </div>
+        </div>
     </div>
 
     <div class="title">Kartu Hasil Studi (KHS)</div>
@@ -161,7 +166,7 @@
             </div>
         </div>
         <div class="signature">
-            Kota Akademik, {{ now()->format('d F Y') }}<br>
+            Tegal, {{ now()->format('d F Y') }}<br>
             Ketua Program Studi
             <div class="line">
                 <strong>_______________________</strong><br>

@@ -153,6 +153,7 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Accept': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             },
                             body: JSON.stringify({
@@ -161,16 +162,39 @@
                             }),
                         });
 
-                        const data = await response.json();
-                        
+                        const data = await response.json().catch(() => null);
+
+                        if (!response.ok) {
+                            let errorMsg = 'Terjadi kendala pada server (HTTP ' + response.status + ').';
+                            if (response.status === 419) {
+                                errorMsg = 'Sesi Anda telah berakhir atau token CSRF kedaluwarsa. Silakan muat ulang (refresh) halaman.';
+                            } else if (data && data.message) {
+                                errorMsg = data.message;
+                            }
+                            this.messages.push({ 
+                                role: 'assistant', 
+                                content: 'Maaf, ' + errorMsg 
+                            });
+                            return;
+                        }
+
+                        if (!data) {
+                            this.messages.push({ 
+                                role: 'assistant', 
+                                content: 'Maaf, server tidak mengembalikan data yang valid. Silakan coba lagi.' 
+                            });
+                            return;
+                        }
+
                         this.messages.push({ 
                             role: 'assistant', 
                             content: data.success ? data.message : 'Maaf, terjadi kesalahan: ' + data.message 
                         });
                     } catch (error) {
+                        console.error('AI Advisor Chat Error:', error);
                         this.messages.push({ 
                             role: 'assistant', 
-                            content: 'Maaf, terjadi kesalahan jaringan. Silakan coba lagi.' 
+                            content: 'Maaf, terjadi kesalahan jaringan (' + (error.message || 'Gagal terhubung') + '). Pastikan koneksi internet stabil atau muat ulang halaman.' 
                         });
                     } finally {
                         this.stopThinking();

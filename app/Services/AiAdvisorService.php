@@ -334,10 +334,14 @@ class AiAdvisorService
         }
 
         $error = $response->json();
+        $errorMsg = is_array($error) ? ($error['error']['message'] ?? $error['message'] ?? null) : null;
+        if (empty($errorMsg)) {
+            $errorMsg = 'HTTP '.$response->status().' - '.($response->body() ?: 'Unknown error');
+        }
 
         return [
             'success' => false,
-            'message' => 'Gagal mendapatkan respons dari AI: '.($error['error']['message'] ?? 'Unknown error'),
+            'message' => 'Gagal mendapatkan respons dari AI: '.$errorMsg,
         ];
     }
 

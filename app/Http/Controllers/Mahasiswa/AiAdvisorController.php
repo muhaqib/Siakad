@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AiAdvisorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AiAdvisorController extends Controller
 {
@@ -22,8 +23,8 @@ class AiAdvisorController extends Controller
     public function index()
     {
         $mahasiswa = Auth::user()->mahasiswa;
-        
-        if (!$mahasiswa) {
+
+        if (! $mahasiswa) {
             abort(403, 'Unauthorized');
         }
 
@@ -43,17 +44,28 @@ class AiAdvisorController extends Controller
         ]);
 
         $mahasiswa = Auth::user()->mahasiswa;
-        
-        if (!$mahasiswa) {
+
+        if (! $mahasiswa) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $result = $this->aiService->chat(
-            $mahasiswa,
-            $request->input('message'),
-            $request->input('history', [])
-        );
+        try {
+            $result = $this->aiService->chat(
+                $mahasiswa,
+                $request->input('message'),
+                $request->input('history', [])
+            );
 
-        return response()->json($result);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            Log::error('AI Advisor Controller Exception: '.$e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kendala pada server: '.$e->getMessage(),
+            ], 500);
+        }
     }
 }

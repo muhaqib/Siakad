@@ -159,10 +159,30 @@
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
                                         ✓ Lunas
                                     </span>
+                                    {{-- Badge jika dibayar via Midtrans --}}
+                                    @if($p->isPaidViaMidtrans())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 ml-1">
+                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                            Online
+                                        </span>
+                                    @endif
                                 @elseif($p->isPartial())
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200">
                                         Cicilan (Sisa Rp {{ number_format($p->remaining_amount, 0, ',', '.') }})
                                     </span>
+                                @elseif($p->status === 'pending')
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                                        Menunggu Bank
+                                    </span>
+                                    {{-- Tombol konfirmasi manual untuk pembayaran Transfer yang pending --}}
+                                    <div class="mt-1">
+                                        <a href="{{ route('admin.payments.show', $p->id) }}"
+                                           class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline">
+                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            Konfirmasi Transfer Manual
+                                        </a>
+                                    </div>
                                 @elseif($p->status === 'cancelled')
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200">
                                         Dibatalkan

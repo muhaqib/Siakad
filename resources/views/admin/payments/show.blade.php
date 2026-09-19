@@ -188,6 +188,21 @@
                                 </div>
                             @endif
 
+                            @if($payment->hasPendingMidtrans())
+                                <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 space-y-1">
+                                    <div class="flex items-center gap-2 font-bold text-blue-950 dark:text-blue-100 text-sm">
+                                        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <span>Status Midtrans: Menunggu Pembayaran Mahasiswa</span>
+                                    </div>
+                                    <p class="leading-relaxed">
+                                        Mahasiswa telah membuat transaksi online Midtrans dengan Order ID: <span class="font-mono font-bold">{{ $payment->midtrans_order_id }}</span>. Jika mahasiswa membayar via Virtual Account / QRIS, sistem akan otomatis melunasi tagihan ini via Webhook.
+                                    </p>
+                                    <p class="text-blue-700 dark:text-blue-300 pt-0.5">
+                                        * Jika mahasiswa akhirnya memilih membayar langsung secara tunai/manual di loket kasir, Anda tetap dapat memprosesnya melalui form di bawah ini.
+                                    </p>
+                                </div>
+                            @endif
+
                             <form action="{{ route('admin.payments.confirm', $payment->id) }}" method="POST" class="space-y-5">
                                 @csrf
 
@@ -353,12 +368,29 @@
                                 </p>
                             </div>
                         </div>
-                        <div class="mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                            <span class="text-xs text-emerald-800 dark:text-emerald-300">
-                                Dikonfirmasi oleh: <strong>{{ $payment->confirmedBy->name ?? 'Admin' }}</strong> ({{ $payment->confirmed_at ? $payment->confirmed_at->format('d/m/Y H:i') : '-' }})
-                            </span>
+                        <div class="mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="space-y-1">
+                                @if($payment->isPaidViaMidtrans())
+                                    <div class="flex items-center gap-2">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                            Midtrans Payment Gateway
+                                        </span>
+                                        <span class="text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                                            Terkonfirmasi Otomatis ({{ $payment->confirmed_at ? $payment->confirmed_at->format('d/m/Y H:i') : '-' }})
+                                        </span>
+                                    </div>
+                                    <p class="text-[11px] text-emerald-900 dark:text-emerald-300 font-mono">
+                                        Order ID: <span class="font-bold">{{ $payment->midtrans_order_id }}</span> &bull; Saluran: <span class="uppercase font-bold">{{ $payment->midtrans_payment_type ?? $payment->payment_method }}</span>
+                                    </p>
+                                @else
+                                    <span class="text-xs text-emerald-800 dark:text-emerald-300">
+                                        Dikonfirmasi oleh Admin/Kasir: <strong>{{ $payment->confirmedBy->name ?? 'Staf Keuangan' }}</strong> ({{ $payment->confirmed_at ? $payment->confirmed_at->format('d/m/Y H:i') : '-' }}) &bull; Metode: <strong>{{ $payment->payment_method ?? 'Tunai' }}</strong>
+                                    </span>
+                                @endif
+                            </div>
                             <a href="{{ route('admin.payments.receipt', $payment->id) }}" target="_blank"
-                               class="btn-primary-saas px-3.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5">
+                               class="btn-primary-saas px-3.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 flex-shrink-0">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 <span>Cetak Kuitansi</span>
                             </a>

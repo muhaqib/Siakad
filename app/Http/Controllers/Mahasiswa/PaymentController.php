@@ -43,9 +43,20 @@ class PaymentController extends Controller
         $krsAccess = $this->paymentAccessService->checkKrsAccess($mahasiswa, $activeSemester);
         $currentSemesterPayment = $this->paymentAccessService->getPaymentStatus($mahasiswa, $activeSemester);
 
+        $recentTransactions = StudentPayment::with(['paymentType', 'confirmedBy'])
+            ->where('mahasiswa_id', $mahasiswa->id)
+            ->where(function ($q) {
+                $q->where('status', 'paid')
+                    ->orWhere('status', 'pending')
+                    ->orWhere('paid_amount', '>', 0);
+            })
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
         return view('mahasiswa.payments.index', compact(
             'mahasiswa',
             'payments',
+            'recentTransactions',
             'totalKewajiban',
             'totalDibayar',
             'totalTunggakan',

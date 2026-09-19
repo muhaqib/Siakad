@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Middleware\FakultasScopeMiddleware;
+use App\Http\Middleware\RequestLoggingMiddleware;
+use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SecurityHeadersMiddleware;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,15 +21,15 @@ return Application::configure(basePath: dirname(__DIR__))
             RateLimiter::for('krs', function (Request $request) {
                 return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
             });
-            
+
             RateLimiter::for('penilaian', function (Request $request) {
                 return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
             });
-            
+
             RateLimiter::for('sensitive', function (Request $request) {
                 return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
             });
-            
+
             RateLimiter::for('ai-chat', function (Request $request) {
                 return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
             });
@@ -33,16 +37,21 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Global middleware - applies to all requests
-        $middleware->append(\App\Http\Middleware\SecurityHeadersMiddleware::class);
-        
+        $middleware->append(SecurityHeadersMiddleware::class);
+
         // Middleware aliases
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
-            'log.requests' => \App\Http\Middleware\RequestLoggingMiddleware::class,
-            'fakultas.scope' => \App\Http\Middleware\FakultasScopeMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'log.requests' => RequestLoggingMiddleware::class,
+            'fakultas.scope' => FakultasScopeMiddleware::class,
+        ]);
+
+        // Webhook Midtrans dipanggil oleh server Midtrans, bukan browser,
+        // sehingga harus dikecualikan dari CSRF verification.
+        $middleware->validateCsrfTokens(except: [
+            'midtrans/notification',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
-

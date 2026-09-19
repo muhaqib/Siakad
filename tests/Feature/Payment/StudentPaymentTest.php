@@ -83,15 +83,22 @@ test('initialization service generates registration and 8 semesters obligations 
     expect($this->mahasiswaA->payments()->count())->toBe(9);
 });
 
-test('mahasiswa can view their payments timeline', function () {
+test('mahasiswa can view their payments timeline and sees midtrans transfer buttons', function () {
     $service = app(PaymentInitializationService::class);
     $service->initializeStudentPayments($this->mahasiswaA);
 
     $response = $this->actingAs($this->userMhsA)->get(route('mahasiswa.payments.index'));
     $response->assertSuccessful();
-    $response->assertSee('Timeline & Daftar Kewajiban Pembayaran', false);
+    $response->assertSee('Daftar Tagihan', false);
     $response->assertSee('Pendaftaran Mahasiswa Baru');
     $response->assertSee('Pembayaran Kuliah Semester 1');
+    $response->assertSee('Bayar Transfer melalui Midtrans');
+    $response->assertSee('Bayar Transfer (Midtrans)');
+
+    $payment = $this->mahasiswaA->payments()->first();
+    $showResponse = $this->actingAs($this->userMhsA)->get(route('mahasiswa.payments.show', $payment->id));
+    $showResponse->assertSuccessful();
+    $showResponse->assertSee('Bayar Transfer melalui Midtrans');
 });
 
 test('admin fakultas can only view payments of their own faculty', function () {

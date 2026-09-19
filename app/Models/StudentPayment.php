@@ -18,6 +18,9 @@ class StudentPayment extends Model
         'payment_type_id',
         'tahun_akademik_id',
         'invoice_number',
+        'midtrans_order_id',
+        'midtrans_token',
+        'midtrans_payment_type',
         'amount',
         'paid_amount',
         'status',
@@ -117,5 +120,29 @@ class StudentPayment extends Model
     public function getSequenceOrder(): int
     {
         return $this->paymentType?->getSequenceOrder() ?? 999;
+    }
+
+    /**
+     * Apakah ada transaksi Midtrans yang masih pending (token belum digunakan / menunggu konfirmasi).
+     */
+    public function hasPendingMidtrans(): bool
+    {
+        return $this->status === 'pending' && ! empty($this->midtrans_token);
+    }
+
+    /**
+     * Apakah pembayaran ini dilakukan via Midtrans.
+     */
+    public function isPaidViaMidtrans(): bool
+    {
+        return $this->isPaid() && ! empty($this->midtrans_order_id);
+    }
+
+    /**
+     * Apakah pembayaran ini dikonfirmasi secara manual oleh Admin/Kasir.
+     */
+    public function isPaidViaAdmin(): bool
+    {
+        return $this->isPaid() && ! $this->isPaidViaMidtrans();
     }
 }

@@ -38,6 +38,10 @@ class Notification extends Model
 
     const TYPE_PAYMENT_CANCELLED = 'payment_cancelled';
 
+    const TYPE_PAYMENT_PENDING = 'payment_pending';
+
+    const TYPE_PAYMENT_FAILED = 'payment_failed';
+
     /**
      * User pemilik notifikasi
      */
@@ -93,6 +97,8 @@ class Notification extends Model
             self::TYPE_PRESENSI_WARNING => '⚠️',
             self::TYPE_PAYMENT_CONFIRMED => '💳',
             self::TYPE_PAYMENT_CANCELLED => '🚫',
+            self::TYPE_PAYMENT_PENDING => '⏳',
+            self::TYPE_PAYMENT_FAILED => '❌',
             default => '🔔'
         };
     }
@@ -110,6 +116,8 @@ class Notification extends Model
             self::TYPE_PRESENSI_WARNING => 'amber',
             self::TYPE_PAYMENT_CONFIRMED => 'emerald',
             self::TYPE_PAYMENT_CANCELLED => 'red',
+            self::TYPE_PAYMENT_PENDING => 'blue',
+            self::TYPE_PAYMENT_FAILED => 'red',
             default => 'slate'
         };
     }

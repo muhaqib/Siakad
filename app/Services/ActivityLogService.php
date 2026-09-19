@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Str;
 
 class ActivityLogService
 {
@@ -16,7 +17,7 @@ class ActivityLogService
     {
         return ActivityLog::create([
             'user_id' => Auth::id(),
-            'action' => $action,
+            'action' => Str::limit($action, 255, ''),
             'model_type' => $model ? get_class($model) : null,
             'model_id' => $model?->id,
             'changes' => $changes,

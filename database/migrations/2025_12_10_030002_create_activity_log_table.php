@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::create('activity_log', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
-            $table->string('action', 50); // create, update, delete, login, logout, etc
+            $table->string('action', 255); // create, update, delete, login, logout, etc
             $table->string('model_type')->nullable(); // App\Models\Mahasiswa
             $table->unsignedBigInteger('model_id')->nullable();
             $table->json('changes')->nullable(); // JSON of old/new values
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamps();
-            
+
             $table->index(['model_type', 'model_id']);
             $table->index('user_id');
             $table->index('action');

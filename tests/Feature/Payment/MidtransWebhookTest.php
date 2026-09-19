@@ -320,3 +320,59 @@ it('skips already settled payment idempotently', function () {
     $this->payment->refresh();
     expect($this->payment->status)->toBe('paid');
 });
+
+/**
+ * Test: Webhook settlement parsial mengubah status menjadi 'partial' dan mengakumulasi paid_amount
+ */
+it('processes partial settlement and sets status to partial', function () {
+    $orderId = $this->orderId;
+    $statusCode = '200';
+    $installmentAmount = '1000000.00';
+
+    $payload = [
+        'order_id' => $orderId,
+        'transaction_status' => 'settlement',
+        'fraud_status' => 'accept',
+        'payment_type' => 'bank_transfer',
+        'status_code' => $statusCode,
+        'gross_amount' => $installmentAmount,
+        'settlement_time' => now()->toISOString(),
+        'signature_key' => makeMidtransSignature($orderId, $statusCode, $installmentAmount, $this->serverKey),
+    ];
+
+    $response = $this->postJson('/midtrans/notification', $payload);
+
+    $response->assertSuccessful()
+        ->assertJson(['status' => 'ok', 'new_status' => 'partial']);
+
+    $this->payment->refresh();
+    expect($this->payment->status)->toBe('partial');
+    expect((float) $this->payment->paid_amount)->toBe(1000000.0);
+    expect($this->payment->remaining_amount)->toBe(2000000.0);
+
+    // Cicilan kedua sisa 2.000.000
+    $secondOrderId = 'INV-99-'.time().'-2';
+    $this->payment->update(['midtrans_order_id' => $secondOrderId]);
+
+    $secondInstallment = '2000000.00';
+    $payload2 = [
+        'order_id' => $secondOrderId,
+        'transaction_status' => 'settlement',
+        'fraud_status' => 'accept',
+        'payment_type' => 'qris',
+        'status_code' => $statusCode,
+        'gross_amount' => $secondInstallment,
+        'settlement_time' => now()->toISOString(),
+        'signature_key' => makeMidtransSignature($secondOrderId, $statusCode, $secondInstallment, $this->serverKey),
+    ];
+
+    $response2 = $this->postJson('/midtrans/notification', $payload2);
+
+    $response2->assertSuccessful()
+        ->assertJson(['status' => 'ok', 'new_status' => 'paid']);
+
+    $this->payment->refresh();
+    expect($this->payment->status)->toBe('paid');
+    expect((float) $this->payment->paid_amount)->toBe(3000000.0);
+    expect($this->payment->remaining_amount)->toBe(0.0);
+});

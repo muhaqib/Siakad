@@ -156,3 +156,56 @@ it('generates order id with correct format', function () {
     expect($orderId)->toStartWith('INV-'.$this->payment->id.'-');
     expect(strlen($orderId))->toBeGreaterThan(10);
 });
+
+/**
+ * Test: Generate Snap Token dengan nominal cicilan custom
+ */
+it('generates snap token with custom installment amount', function () {
+    Http::fake([
+        'app.sandbox.midtrans.com/snap/v1/transactions' => function (Request $request) {
+            $data = $request->data();
+            expect($data['transaction_details']['gross_amount'])->toBe(500000);
+            expect($data['item_details'][0]['price'])->toBe(500000);
+            expect($data['item_details'][0]['name'])->toStartWith('Cicilan ');
+
+            return Http::response([
+                'token' => 'snap-installment-token-500k',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-installment-token-500k',
+            ], 200);
+        },
+    ]);
+
+    $token = $this->service->generateSnapToken($this->payment, 500000);
+
+    expect($token)->toBe('snap-installment-token-500k');
+
+    $this->payment->refresh();
+    expect($this->payment->midtrans_token)->toBe('snap-installment-token-500k');
+
+    $history = PaymentHistory::where('student_payment_id', $this->payment->id)
+        ->latest('id')
+        ->first();
+
+    expect($history->notes)->toContain('500.000');
+});
+
+/**
+ * Test: Endpoint token memvalidasi nominal cicilan
+ */
+it('validates installment amount on midtrans token route', function () {
+    $this->actingAs($this->mahasiswa->user);
+
+    // Test di bawah minimal 10.000
+    $resMin = $this->postJson("/mahasiswa/payments/{$this->payment->id}/midtrans/token", [
+        'amount' => 5000,
+    ]);
+    $resMin->assertStatus(422)
+        ->assertJsonValidationErrors(['amount']);
+
+    // Test melebihi remaining_amount (2.500.000)
+    $resMax = $this->postJson("/mahasiswa/payments/{$this->payment->id}/midtrans/token", [
+        'amount' => 3000000,
+    ]);
+    $resMax->assertStatus(422)
+        ->assertJsonValidationErrors(['amount']);
+});

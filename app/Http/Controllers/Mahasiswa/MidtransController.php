@@ -9,6 +9,7 @@ use App\Services\PaymentAccessService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class MidtransController extends Controller
@@ -24,7 +25,7 @@ class MidtransController extends Controller
      * Endpoint: POST /mahasiswa/payments/{payment}/midtrans/token
      * Dipanggil via JavaScript fetch() saat mahasiswa klik tombol "Bayar via Midtrans".
      */
-    public function generateToken(StudentPayment $payment): JsonResponse
+    public function generateToken(Request $request, StudentPayment $payment): JsonResponse
     {
         $mahasiswa = Auth::user()->mahasiswa;
 
@@ -44,15 +45,31 @@ class MidtransController extends Controller
             return response()->json(['message' => $check['reason']], 422);
         }
 
+        $remaining = (float) $payment->remaining_amount;
+
+        // Validasi nominal pembayaran jika diinput untuk cicilan
+        $validated = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:10000', 'max:'.$remaining],
+        ], [
+            'amount.numeric' => 'Nominal pembayaran harus berupa angka valid.',
+            'amount.min' => 'Nominal pembayaran minimal adalah Rp 10.000.',
+            'amount.max' => 'Nominal pembayaran tidak boleh melebihi sisa tagihan (Rp '.number_format($remaining, 0, ',', '.').').',
+        ]);
+
+        $payAmount = isset($validated['amount']) && (float) $validated['amount'] > 0
+            ? (float) $validated['amount']
+            : $remaining;
+
         try {
-            $token = $this->midtransService->generateSnapToken($payment);
+            $token = $this->midtransService->generateSnapToken($payment, $payAmount);
 
             return response()->json([
                 'snap_token' => $token,
                 'client_key' => config('midtrans.client_key'),
                 'payment_id' => $payment->id,
-                'amount' => (int) $payment->remaining_amount,
+                'amount' => (int) $payAmount,
                 'invoice' => $payment->invoice_number,
+                'is_installment' => $payAmount < $remaining,
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);

@@ -155,6 +155,40 @@
                                     </div>
                                 </div>
 
+                                <div class="space-y-2 pt-2 border-t border-blue-100 dark:border-blue-900/50">
+                                    <div class="flex items-center justify-between">
+                                        <label for="input-nominal-{{ $payment->id }}" class="text-[11px] font-bold text-siakad-dark dark:text-gray-200 flex items-center gap-1.5">
+                                            <span>Nominal yang Ingin Dibayar:</span>
+                                            <span id="badge-mode-{{ $payment->id }}" class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Pelunasan Penuh</span>
+                                        </label>
+                                        <button 
+                                            type="button"
+                                            onclick="setNominalFull({{ $payment->id }}, {{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }})"
+                                            class="text-[10px] font-bold text-siakad-primary hover:underline dark:text-blue-400"
+                                        >
+                                            Set LUNAS
+                                        </button>
+                                    </div>
+                                    <div class="relative rounded-lg shadow-sm">
+                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                                            <span class="text-xs font-bold text-siakad-secondary dark:text-gray-400">Rp</span>
+                                        </div>
+                                        <input 
+                                            type="number" 
+                                            id="input-nominal-{{ $payment->id }}"
+                                            min="10000"
+                                            max="{{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }}"
+                                            step="5000"
+                                            value="{{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }}"
+                                            oninput="updateNominalPreview({{ $payment->id }}, {{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }})"
+                                            class="block w-full rounded-lg border border-siakad-light dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 pl-8 pr-3 text-xs font-bold text-siakad-dark dark:text-white focus:border-siakad-primary focus:ring-1 focus:ring-siakad-primary"
+                                        />
+                                    </div>
+                                    <p id="hint-nominal-{{ $payment->id }}" class="text-[10px] text-siakad-secondary dark:text-gray-400">
+                                        Bisa dicicil minimal Rp 10.000 s/d sisa tagihan.
+                                    </p>
+                                </div>
+
                                 <button
                                     id="btn-pay-{{ $payment->id }}"
                                     onclick="payWithMidtrans({{ $payment->id }}, this)"
@@ -163,7 +197,7 @@
                                     <svg class="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                                     </svg>
-                                    Bayar Transfer melalui Midtrans (Rp {{ number_format($payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount, 0, ',', '.') }})
+                                    <span id="btn-text-{{ $payment->id }}">Bayar Transfer melalui Midtrans (Rp {{ number_format($payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount, 0, ',', '.') }})</span>
                                 </button>
                             </div>
 
@@ -178,17 +212,31 @@
                                     </div>
                                     <h5 class="text-sm font-bold text-siakad-dark dark:text-white">Bayar via Kasir / Transfer Bank</h5>
                                     <p class="text-xs text-siakad-secondary dark:text-gray-400 leading-relaxed">
-                                        Datang langsung ke loket keuangan kampus atau transfer manual ke rekening resmi STIT Mambaul Hikmah:
+                                        Bayar langsung di loket keuangan kampus secara tunai atau transfer rekening manual, lalu serahkan bukti bayar ke admin keuangan.
                                     </p>
-                                    <div class="p-2.5 rounded-lg bg-white dark:bg-gray-800 border border-siakad-light dark:border-gray-700 font-mono text-[11px]">
-                                        <p class="font-bold text-siakad-dark dark:text-white">BSI (Bank Syariah Indonesia)</p>
-                                        <p class="font-bold text-siakad-primary dark:text-blue-400">712-3456-789</p>
-                                        <p class="text-[10px] text-siakad-secondary dark:text-gray-400">a.n. STIT MAMBAUL HIKMAH TEGAL</p>
+                                    <div class="p-2 rounded-lg bg-white/80 dark:bg-gray-800/60 text-[11px] text-siakad-secondary dark:text-gray-400 space-y-1">
+                                        <div class="flex items-center gap-1.5 font-medium">
+                                            <span>⏱</span>
+                                            <span>Verifikasi manual oleh admin (1-2 hari kerja)</span>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 font-medium">
+                                            <span>📄</span>
+                                            <span>Bawa kuitansi fisik / bukti transfer ke TU</span>
+                                        </div>
                                     </div>
-                                    <p class="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
-                                        * Setelah transfer atau setor tunai, serahkan bukti pembayaran ke Staf Keuangan untuk diverifikasi manual di sistem.
-                                    </p>
                                 </div>
+
+                                <a
+                                    href="https://wa.me/6281234567890?text=Halo%20Admin%20Keuangan,%20saya%20ingin%20konfirmasi%20pembayaran%20{{ urlencode($payment->name) }}%20(ID:%20{{ $payment->id }})"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="w-full btn-secondary-saas py-3 text-xs font-semibold rounded-xl flex items-center justify-center gap-2"
+                                >
+                                    <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.2.662.589 1.221.771 1.394.858.173.086.274.072.375-.044.101-.116.433-.506.549-.68.116-.173.231-.144.39-.086s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824z"/>
+                                    </svg>
+                                    Konfirmasi ke Admin Keuangan
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -213,30 +261,81 @@
 
 @if(! $payment->isPaid())
 @push('scripts')
-{{-- Load Midtrans Snap.js --}}
-<script src="{{ config('midtrans.base_url.snap_js') }}"
-        data-client-key="{{ config('midtrans.client_key') }}"></script>
-
 <script>
-async function ensureSnapLoaded() {
-    if (typeof snap !== 'undefined') {
-        return true;
+const MIDTRANS_CLIENT_KEY = '{{ config('services.midtrans.client_key') }}';
+const MIDTRANS_IS_PRODUCTION = {{ config('services.midtrans.is_production', false) ? 'true' : 'false' }};
+const SNAP_URL = MIDTRANS_IS_PRODUCTION
+    ? 'https://app.midtrans.com/snap/snap.js'
+    : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
+function setNominalFull(paymentId, maxAmount) {
+    const input = document.getElementById(`input-nominal-${paymentId}`);
+    if (input) {
+        input.value = maxAmount;
+        updateNominalPreview(paymentId, maxAmount);
     }
+}
+
+function updateNominalPreview(paymentId, maxAmount) {
+    const input = document.getElementById(`input-nominal-${paymentId}`);
+    const badge = document.getElementById(`badge-mode-${paymentId}`);
+    const btnText = document.getElementById(`btn-text-${paymentId}`);
+    const hint = document.getElementById(`hint-nominal-${paymentId}`);
+
+    if (!input) return;
+
+    let val = parseInt(input.value) || 0;
+    if (val > maxAmount) {
+        val = maxAmount;
+        input.value = maxAmount;
+    }
+
+    const formatted = new Intl.NumberFormat('id-ID').format(val);
+
+    if (val >= maxAmount) {
+        if (badge) {
+            badge.textContent = 'Pelunasan Penuh';
+            badge.className = 'px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+        }
+        if (btnText) {
+            btnText.textContent = `Bayar Transfer melalui Midtrans (Rp ${formatted})`;
+        }
+        if (hint) {
+            hint.textContent = 'Pembayaran penuh akan melunasi seluruh sisa tagihan ini.';
+        }
+    } else {
+        const remainingAfter = maxAmount - val;
+        const formattedRem = new Intl.NumberFormat('id-ID').format(remainingAfter);
+        if (badge) {
+            badge.textContent = 'Cicilan';
+            badge.className = 'px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+        }
+        if (btnText) {
+            btnText.textContent = `Bayar Cicilan via Midtrans (Rp ${formatted})`;
+        }
+        if (hint) {
+            hint.textContent = `Sisa tagihan setelah cicilan ini: Rp ${formattedRem}`;
+        }
+    }
+}
+
+function ensureSnapLoaded() {
     return new Promise((resolve, reject) => {
-        const existing = document.querySelector('script[src*="snap.js"]');
-        if (existing) {
-            if (typeof snap !== 'undefined') return resolve(true);
-            existing.addEventListener('load', () => resolve(true));
-            existing.addEventListener('error', () => reject(new Error('Gagal memuat modul pembayaran Midtrans.')));
-            setTimeout(() => {
-                if (typeof snap !== 'undefined') resolve(true);
-                else reject(new Error('Modul pembayaran Midtrans tidak merespons.'));
-            }, 3000);
+        if (window.snap) {
+            resolve(true);
             return;
         }
+
+        const existingScript = document.querySelector(`script[src="${SNAP_URL}"]`);
+        if (existingScript) {
+            existingScript.onload = () => resolve(true);
+            existingScript.onerror = () => reject(new Error('Gagal memuat modul pembayaran Midtrans.'));
+            return;
+        }
+
         const script = document.createElement('script');
-        script.src = '{{ config("midtrans.base_url.snap_js") }}';
-        script.setAttribute('data-client-key', '{{ config("midtrans.client_key") }}');
+        script.src = SNAP_URL;
+        script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
         script.onload = () => resolve(true);
         script.onerror = () => reject(new Error('Gagal memuat modul pembayaran Midtrans.'));
         document.head.appendChild(script);
@@ -245,6 +344,14 @@ async function ensureSnapLoaded() {
 
 async function payWithMidtrans(paymentId, btn) {
     const originalText = btn.innerHTML;
+    const inputNominal = document.getElementById(`input-nominal-${paymentId}`);
+    let amountToPay = inputNominal ? parseInt(inputNominal.value) : null;
+
+    if (amountToPay && amountToPay < 10000) {
+        alert('⚠️ Nominal pembayaran minimal adalah Rp 10.000');
+        return;
+    }
+
     btn.disabled = true;
     btn.innerHTML = `
         <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -261,6 +368,11 @@ async function payWithMidtrans(paymentId, btn) {
             console.warn('Snap load:', snapErr);
         }
 
+        const payload = {};
+        if (amountToPay) {
+            payload.amount = amountToPay;
+        }
+
         const response = await fetch(`/mahasiswa/payments/${paymentId}/midtrans/token`, {
             method: 'POST',
             headers: {
@@ -268,6 +380,7 @@ async function payWithMidtrans(paymentId, btn) {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json',
             },
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();

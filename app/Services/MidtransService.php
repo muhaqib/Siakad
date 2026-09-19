@@ -27,26 +27,35 @@ class MidtransService
      *
      * @throws \RuntimeException jika Midtrans mengembalikan error
      */
-    public function generateSnapToken(StudentPayment $payment): string
+    public function generateSnapToken(StudentPayment $payment, ?float $payAmount = null): string
     {
         $payment->loadMissing(['mahasiswa.user', 'paymentType']);
+
+        $remaining = (int) round($payment->remaining_amount);
+        $amountToPay = $payAmount !== null ? (int) round($payAmount) : $remaining;
+        $amountToPay = max(10000, min($remaining, $amountToPay));
+        $isInstallment = $amountToPay < $remaining;
 
         $orderId = $this->generateOrderId($payment);
         $mahasiswa = $payment->mahasiswa;
         $user = $mahasiswa->user;
 
+        $itemName = $isInstallment
+            ? 'Cicilan '.($payment->paymentType->name ?? 'Pembayaran UKT')
+            : ($payment->paymentType->name ?? 'Pembayaran UKT');
+
         // Parameter transaksi yang dikirim ke Midtrans
         $params = [
             'transaction_details' => [
                 'order_id' => $orderId,
-                'gross_amount' => (int) $payment->remaining_amount, // nominal sisa tagihan
+                'gross_amount' => $amountToPay, // nominal yang dibayar (cicilan atau lunas)
             ],
             'item_details' => [
                 [
                     'id' => (string) $payment->payment_type_id,
-                    'price' => (int) $payment->remaining_amount,
+                    'price' => $amountToPay,
                     'quantity' => 1,
-                    'name' => substr($payment->paymentType->name ?? 'Pembayaran UKT', 0, 50),
+                    'name' => substr($itemName, 0, 50),
                 ],
             ],
             'customer_details' => [
@@ -57,6 +66,8 @@ class MidtransService
                     'nim' => $mahasiswa->nim,
                     'invoice' => $payment->invoice_number,
                     'payment_id' => $payment->id,
+                    'pay_amount' => $amountToPay,
+                    'is_installment' => $isInstallment ? 'true' : 'false',
                 ],
             ],
             // Aktifkan semua metode pembayaran yang tersedia
@@ -110,8 +121,10 @@ class MidtransService
             'action' => 'midtrans_initiated',
             'old_status' => $payment->getOriginal('status') ?? 'unpaid',
             'new_status' => 'pending',
-            'amount' => $payment->remaining_amount,
-            'notes' => "Transaksi Midtrans dibuat. Order ID: {$orderId}",
+            'amount' => $amountToPay,
+            'notes' => $isInstallment
+                ? 'Transaksi cicilan Midtrans dibuat: Rp '.number_format($amountToPay, 0, ',', '.')." (Order ID: {$orderId})"
+                : "Transaksi Midtrans dibuat. Order ID: {$orderId}",
             'performed_by' => $mahasiswa->user_id,
         ]);
 
@@ -180,46 +193,94 @@ class MidtransService
             $oldStatus = $payment->status;
             $grossAmount = (float) ($payload['gross_amount'] ?? $payment->remaining_amount);
             $midtransPayType = $payload['payment_type'] ?? null;
-            $transactionTime = $payload['settlement_time'] ?? $payload['transaction_time'] ?? now();
-
-            $updateData = [
-                'status' => $newStatus,
-                'midtrans_payment_type' => $midtransPayType,
-            ];
+            $orderId = $payment->midtrans_order_id;
 
             // Jika pembayaran berhasil (settlement / capture)
             if ($newStatus === 'paid') {
-                $updateData['paid_amount'] = $grossAmount;
-                $updateData['payment_method'] = $this->humanizePaymentType($midtransPayType);
-                $updateData['payment_date'] = now()->toDateString();
-                $updateData['confirmed_at'] = now();
-            }
+                $newTotalPaid = (float) $payment->paid_amount + $grossAmount;
+                $isFullPayment = $newTotalPaid >= (float) $payment->amount;
+                $finalStatus = $isFullPayment ? 'paid' : 'partial';
 
-            $payment->update($updateData);
+                $updateData = [
+                    'status' => $finalStatus,
+                    'paid_amount' => min((float) $payment->amount, $newTotalPaid),
+                    'midtrans_payment_type' => $midtransPayType,
+                    'payment_method' => $this->humanizePaymentType($midtransPayType),
+                    'payment_date' => now()->toDateString(),
+                    'confirmed_at' => now(),
+                ];
 
-            // Catat di PaymentHistory untuk audit trail
-            PaymentHistory::create([
-                'student_payment_id' => $payment->id,
-                'action' => 'midtrans_'.$transactionStatus,
-                'old_status' => $oldStatus,
-                'new_status' => $newStatus,
-                'amount' => $newStatus === 'paid' ? $grossAmount : 0,
-                'notes' => sprintf(
-                    'Notifikasi Midtrans: %s | Metode: %s | Order: %s',
-                    strtoupper($transactionStatus),
-                    $midtransPayType ?? '-',
-                    $payment->midtrans_order_id
-                ),
-                'performed_by' => null, // sistem otomatis
-            ]);
+                $payment->update($updateData);
 
-            // Kirim notifikasi in-app ke mahasiswa
-            if ($payment->mahasiswa?->user) {
-                $this->sendPaymentNotification($payment, $newStatus);
+                // Catat di PaymentHistory untuk audit trail
+                PaymentHistory::create([
+                    'student_payment_id' => $payment->id,
+                    'action' => $isFullPayment ? 'midtrans_'.$transactionStatus : 'midtrans_partial_'.$transactionStatus,
+                    'old_status' => $oldStatus,
+                    'new_status' => $finalStatus,
+                    'amount' => $grossAmount,
+                    'notes' => sprintf(
+                        'Notifikasi Midtrans: %s | %s: Rp %s | Metode: %s | Order: %s',
+                        strtoupper($transactionStatus),
+                        $isFullPayment ? 'Pelunasan' : 'Pembayaran Cicilan',
+                        number_format($grossAmount, 0, ',', '.'),
+                        $midtransPayType ?? '-',
+                        $orderId
+                    ),
+                    'performed_by' => null, // sistem otomatis
+                ]);
+
+                // Catat di ActivityLog
+                $mhsName = $payment->mahasiswa->user->name ?? $payment->mahasiswa->nim;
+                $typeName = $payment->paymentType->name ?? 'Pembayaran';
+                $actionLabel = $isFullPayment ? 'Pelunasan otomatis' : 'Pembayaran cicilan otomatis';
+                $remainingAfter = max(0, (float) $payment->amount - $newTotalPaid);
+
+                app(ActivityLogService::class)->log(
+                    action: "{$actionLabel} Midtrans {$typeName} mahasiswa {$mhsName} ({$payment->mahasiswa->nim}) sebesar Rp ".number_format($grossAmount, 0, ',', '.').' (Sisa: Rp '.number_format($remainingAfter, 0, ',', '.').')',
+                    model: $payment,
+                    changes: [
+                        'status' => $finalStatus,
+                        'paid_amount' => $newTotalPaid,
+                        'installment_amount' => $grossAmount,
+                        'remaining_amount' => $remainingAfter,
+                    ]
+                );
+
+                // Kirim notifikasi in-app ke mahasiswa
+                if ($payment->mahasiswa?->user) {
+                    $this->sendPaymentNotification($payment, $finalStatus, $grossAmount);
+                }
+
+                $newStatus = $finalStatus;
+            } else {
+                $payment->update([
+                    'status' => $newStatus,
+                    'midtrans_payment_type' => $midtransPayType,
+                ]);
+
+                PaymentHistory::create([
+                    'student_payment_id' => $payment->id,
+                    'action' => 'midtrans_'.$transactionStatus,
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                    'amount' => 0,
+                    'notes' => sprintf(
+                        'Notifikasi Midtrans: %s | Metode: %s | Order: %s',
+                        strtoupper($transactionStatus),
+                        $midtransPayType ?? '-',
+                        $orderId
+                    ),
+                    'performed_by' => null,
+                ]);
+
+                if ($payment->mahasiswa?->user) {
+                    $this->sendPaymentNotification($payment, $newStatus);
+                }
             }
 
             Log::info('Midtrans webhook processed', [
-                'order_id' => $payment->midtrans_order_id,
+                'order_id' => $orderId,
                 'old_status' => $oldStatus,
                 'new_status' => $newStatus,
             ]);
@@ -271,16 +332,22 @@ class MidtransService
     /**
      * Kirim notifikasi in-app ke mahasiswa setelah status berubah.
      */
-    private function sendPaymentNotification(StudentPayment $payment, string $newStatus): void
+    private function sendPaymentNotification(StudentPayment $payment, string $newStatus, float $paidAmount = 0): void
     {
         $typeName = $payment->paymentType?->name ?? 'Pembayaran';
-        $amount = number_format((float) $payment->paid_amount, 0, ',', '.');
+        $amount = number_format($paidAmount > 0 ? $paidAmount : (float) $payment->paid_amount, 0, ',', '.');
+        $remaining = number_format((float) $payment->remaining_amount, 0, ',', '.');
 
         [$notifType, $title, $message] = match ($newStatus) {
             'paid' => [
                 Notification::TYPE_PAYMENT_CONFIRMED,
                 'Pembayaran Berhasil via Midtrans',
-                "Pembayaran {$typeName} sebesar Rp {$amount} telah berhasil dikonfirmasi secara otomatis.",
+                "Pembayaran {$typeName} sebesar Rp {$amount} telah berhasil lunas dikonfirmasi secara otomatis.",
+            ],
+            'partial' => [
+                Notification::TYPE_PAYMENT_CONFIRMED,
+                'Pembayaran Cicilan Diterima via Midtrans',
+                "Pembayaran cicilan {$typeName} sebesar Rp {$amount} telah berhasil diterima. Sisa tagihan Anda saat ini: Rp {$remaining}.",
             ],
             'pending' => [
                 Notification::TYPE_PAYMENT_PENDING,

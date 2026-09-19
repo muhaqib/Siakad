@@ -84,9 +84,15 @@
                     </template>
 
                     <div>
-                        <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
-                            TOTAL PEMBAYARAN
-                        </label>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                TOTAL PEMBAYARAN
+                            </label>
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
+                                  :class="totalPayAmount < activePaymentRemaining ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'"
+                                  x-text="totalPayAmount < activePaymentRemaining ? 'Cicilan' : 'Pelunasan Penuh'">
+                            </span>
+                        </div>
 
                         <!-- Box Display Total Pembayaran -->
                         <div class="p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/70 dark:bg-gray-900/60 flex items-center justify-between">
@@ -98,9 +104,44 @@
                             </span>
                         </div>
 
-                        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
-                            Dijumlah otomatis dari kolom nominal pada Daftar Tagihan.
-                        </p>
+                        <!-- Input Nominal Yang Dibayar (Bisa Cicil) -->
+                        <div class="mt-3.5">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[11px] font-bold text-siakad-dark dark:text-gray-200">
+                                    Nominal Yang Dibayar:
+                                </span>
+                                <span class="text-[10px] text-siakad-secondary dark:text-gray-400">
+                                    Sisa Tagihan: Rp <strong x-text="formatRupiah(activePaymentRemaining)"></strong>
+                                </span>
+                            </div>
+                            <div class="inline-flex items-center w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+                                <span class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">Rp</span>
+                                <input
+                                    type="number"
+                                    x-model.number="totalPayAmount"
+                                    @input="validateNominal()"
+                                    :disabled="isPaying"
+                                    min="10000"
+                                    :max="activePaymentRemaining"
+                                    placeholder="Masukkan nominal cicilan"
+                                    class="w-full px-3 py-2 text-sm font-bold text-siakad-dark dark:text-white border-0 focus:ring-0 focus:outline-none bg-transparent"
+                                />
+                                <button
+                                    type="button"
+                                    @click="setPenuh(activePaymentRemaining)"
+                                    :disabled="isPaying"
+                                    class="px-3 py-2 text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-700 transition cursor-pointer"
+                                >
+                                    LUNAS
+                                </button>
+                            </div>
+                            <template x-if="totalPayAmount > 0 && totalPayAmount < activePaymentRemaining">
+                                <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center justify-between font-medium">
+                                    <span>✓ Mode Pembayaran Cicilan</span>
+                                    <span>Sisa tagihan nanti: Rp <span x-text="formatRupiah(activePaymentRemaining - totalPayAmount)"></span></span>
+                                </p>
+                            </template>
+                        </div>
                     </div>
 
                     {{-- Saluran Pembayaran Yang Tersedia --}}
@@ -137,7 +178,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                             </svg>
                         </template>
-                        <span x-text="isLoading ? 'Menyiapkan Midtrans...' : 'Bayar Transfer melalui Midtrans'"></span>
+                        <span x-text="isLoading ? 'Menyiapkan Midtrans...' : (totalPayAmount < activePaymentRemaining ? 'Bayar Cicilan via Midtrans' : 'Bayar Transfer melalui Midtrans')"></span>
                     </button>
                 </div>
 
@@ -514,39 +555,45 @@
 
                                     <!-- Bagian Input Nominal & Tombol Eksekusi Bayar Transfer Midtrans -->
                                     <div class="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                        <div class="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
-                                            <span class="px-2.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-                                                Rp
+                                        <div>
+                                            <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
+                                                Nominal Cicilan / Pelunasan:
                                             </span>
-                                            <input
-                                                type="number"
-                                                x-model.number="totalPayAmount"
-                                                :disabled="isPaying"
-                                                min="10000"
-                                                max="{{ (int) $p->remaining_amount }}"
-                                                class="w-28 sm:w-32 px-2.5 py-1.5 text-xs font-bold text-siakad-dark dark:text-white text-right border-0 focus:ring-0 focus:outline-none bg-transparent"
-                                            />
-                                            <button
-                                                type="button"
-                                                @click="setPenuh({{ (int) $p->remaining_amount }})"
-                                                :disabled="isPaying"
-                                                class="px-2.5 py-1.5 text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-700 transition"
-                                            >
-                                                PENUH
-                                            </button>
+                                            <div class="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+                                                <span class="px-2.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+                                                    Rp
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    x-model.number="totalPayAmount"
+                                                    @input="validateNominal()"
+                                                    :disabled="isPaying"
+                                                    min="10000"
+                                                    max="{{ (int) $p->remaining_amount }}"
+                                                    class="w-28 sm:w-32 px-2.5 py-1.5 text-xs font-bold text-siakad-dark dark:text-white text-right border-0 focus:ring-0 focus:outline-none bg-transparent"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    @click="setPenuh({{ (int) $p->remaining_amount }})"
+                                                    :disabled="isPaying"
+                                                    class="px-2.5 py-1.5 text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-700 transition cursor-pointer"
+                                                >
+                                                    PENUH
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- Tombol Langsung Bayar Transfer Melalui Midtrans -->
                                         <button
                                             type="button"
                                             @click="selectAndPay({{ $p->id }}, {{ (int) $p->remaining_amount }}, '{{ addslashes($p->paymentType->name) }}', '{{ $p->invoice_number }}')"
-                                            :disabled="isLoading || isPaying"
-                                            class="py-2 px-3.5 rounded-xl text-xs font-bold text-white bg-siakad-primary hover:bg-siakad-dark transition shadow-sm hover:shadow flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                            :disabled="isLoading || isPaying || totalPayAmount <= 0"
+                                            class="py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-siakad-primary hover:bg-siakad-dark transition shadow-sm hover:shadow flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer self-end sm:self-auto"
                                         >
                                             <svg class="w-3.5 h-3.5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                                             </svg>
-                                            <span>Bayar Sekarang</span>
+                                            <span x-text="totalPayAmount < activePaymentRemaining ? 'Bayar Cicilan (Rp ' + formatRupiah(totalPayAmount) + ')' : 'Bayar Sekarang (Lunas)'"></span>
                                         </button>
                                     </div>
                                 </div>
@@ -634,16 +681,29 @@ function paymentApp() {
             return new Intl.NumberFormat('id-ID').format(Math.max(0, num || 0));
         },
 
+        validateNominal() {
+            if (this.totalPayAmount > this.activePaymentRemaining) {
+                this.totalPayAmount = this.activePaymentRemaining;
+            }
+            if (this.totalPayAmount < 0) {
+                this.totalPayAmount = 0;
+            }
+        },
+
         setPenuh(remaining) {
             this.totalPayAmount = remaining;
         },
 
         selectAndPay(paymentId, remaining, name, invoice) {
             this.selectedPaymentId = paymentId;
-            this.totalPayAmount = remaining;
             this.activePaymentRemaining = remaining;
             this.activePaymentName = name;
             this.activePaymentInvoice = invoice;
+            if (!this.totalPayAmount || this.totalPayAmount <= 0) {
+                this.totalPayAmount = remaining;
+            } else if (this.totalPayAmount > remaining) {
+                this.totalPayAmount = remaining;
+            }
             this.proceedToPay();
         },
 
@@ -691,9 +751,18 @@ function paymentApp() {
         },
 
         async proceedToPay() {
-            if (!this.selectedPaymentId || this.totalPayAmount <= 0) {
-                alert('Silakan tentukan nominal pembayaran yang valid.');
+            if (!this.selectedPaymentId) {
+                alert('Silakan pilih tagihan yang ingin dibayar.');
                 return;
+            }
+
+            if (!this.totalPayAmount || this.totalPayAmount < 10000) {
+                alert('Nominal pembayaran minimal adalah Rp 10.000.');
+                return;
+            }
+
+            if (this.totalPayAmount > this.activePaymentRemaining) {
+                this.totalPayAmount = this.activePaymentRemaining;
             }
 
             this.isLoading = true;
@@ -712,6 +781,9 @@ function paymentApp() {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Accept': 'application/json',
                     },
+                    body: JSON.stringify({
+                        amount: this.totalPayAmount
+                    })
                 });
 
                 const data = await response.json();
@@ -783,6 +855,7 @@ function paymentApp() {
 
         cancelPayment() {
             this.isPaying = false;
+            this.snapToken = '';
         }
     };
 }

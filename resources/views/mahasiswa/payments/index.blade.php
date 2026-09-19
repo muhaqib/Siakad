@@ -27,12 +27,6 @@
                     Pembayaran tagihan mahasiswa
                 </p>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ url('mahasiswa/krs') }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl border border-siakad-light dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex items-center gap-2">
-                    <svg class="w-4 h-4 text-siakad-primary dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                    Menuju Pengisian KRS
-                </a>
-            </div>
         </div>
 
         <!-- Status KRS & Semester Aktif (Compact Alert) -->
@@ -396,8 +390,10 @@
                                         </td>
                                         <td class="py-3 text-right whitespace-nowrap">
                                             @if($trx->isPaid())
-                                                <a href="{{ route('mahasiswa.payments.receipt', $trx->id) }}" target="_blank" class="text-siakad-primary dark:text-blue-400 hover:underline font-semibold text-[11px]">
-                                                    Kwitansi
+                                                <a href="{{ route('mahasiswa.payments.receipt', $trx->id) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-siakad-primary/20 bg-siakad-primary/5 px-2 py-1 text-[11px] font-semibold text-siakad-primary dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300 transition hover:bg-siakad-primary/10 hover:border-siakad-primary/30" aria-label="Download kwitansi">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17.5V18a2 2 0 002 2h12a2 2 0 002-2v-.5"/>
+                                                    </svg>
                                                 </a>
                                             @else
                                                 <a href="{{ route('mahasiswa.payments.show', $trx->id) }}" class="text-siakad-secondary dark:text-gray-400 hover:underline text-[11px]">
@@ -481,9 +477,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <a href="{{ route('mahasiswa.payments.receipt', $p->id) }}" target="_blank" class="text-[11px] font-semibold text-siakad-primary dark:text-blue-400 hover:underline">
-                                            Kwitansi
-                                        </a>
                                         <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
                                             LUNAS
                                         </span>
@@ -553,7 +546,7 @@
                                             <svg class="w-3.5 h-3.5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                                             </svg>
-                                            <span>Bayar Transfer (Midtrans)</span>
+                                            <span>Bayar Sekarang</span>
                                         </button>
                                     </div>
                                 </div>

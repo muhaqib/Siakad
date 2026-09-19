@@ -2,237 +2,253 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kwitansi Pembayaran - {{ $payment->invoice_number }}</title>
     <style>
         @page {
-            size: A4 portrait;
-            margin: 15mm 15mm 15mm 15mm;
+            size: a5 landscape;
+            margin: 5mm 5mm 5mm 5mm;
         }
         body {
-            font-family: 'Times New Roman', Times, serif;
-            color: #111;
-            background: #fff;
+            font-family: Helvetica, Arial, sans-serif;
+            color: #222;
+            font-size: 8.2pt;
+            line-height: 1.35;
             margin: 0;
-            padding: 15px;
-            font-size: 11pt;
-            line-height: 1.4;
+            padding: 0;
         }
         .header-table {
             width: 100%;
-            border-bottom: 3px double #000;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            border-collapse: collapse;
+            margin-bottom: 2px;
         }
         .header-table td {
             vertical-align: middle;
+            padding: 0;
+        }
+        .logo-td {
+            width: 58px;
+            text-align: left;
         }
         .logo-img {
-            width: 80px;
-            height: auto;
+            width: 52px;
+            height: 52px;
         }
-        .inst-title {
-            text-align: center;
+        .header-text {
+            padding-left: 6px;
+            text-align: left;
         }
-        .inst-title h3 {
-            margin: 0;
-            font-size: 14pt;
+        .header-title-main {
+            font-size: 10.5pt;
             font-weight: bold;
+            color: #222;
+            margin: 0 0 1px 0;
+            letter-spacing: 0.2px;
         }
-        .inst-title h2 {
-            margin: 2px 0;
-            font-size: 16pt;
+        .header-title-year {
+            font-size: 8.2pt;
+            color: #222;
+            margin: 0 0 1px 0;
+        }
+        .header-title-inst {
+            font-size: 8.2pt;
             font-weight: bold;
-            color: #1a5632;
+            color: #222;
+            margin: 0 0 1px 0;
         }
-        .inst-title p {
-            margin: 1px 0;
-            font-size: 9pt;
+        .header-title-contact {
+            font-size: 6pt;
             color: #333;
-        }
-        .receipt-title {
-            text-align: center;
-            margin: 15px 0;
-        }
-        .receipt-title h4 {
             margin: 0;
-            font-size: 14pt;
-            text-decoration: underline;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
-        .receipt-title p {
-            margin: 3px 0 0 0;
-            font-family: monospace;
-            font-size: 10pt;
-            color: #555;
+        .header-divider {
+            border-bottom: 1.5px solid #000;
+            margin-top: 3px;
+            margin-bottom: 7px;
         }
-        table.content-table {
+        .meta-table {
             width: 100%;
-            margin: 15px 0;
             border-collapse: collapse;
+            margin-bottom: 7px;
         }
-        table.content-table td {
-            padding: 6px 4px;
+        .meta-table td {
+            padding: 1.5px 0;
+            font-size: 8.2pt;
             vertical-align: top;
+            color: #222;
         }
-        table.content-table td.label {
-            width: 180px;
-            color: #333;
-        }
-        table.content-table td.colon {
-            width: 15px;
-            text-align: center;
-        }
-        .amount-box {
-            margin: 15px 0;
-            padding: 12px 15px;
-            border: 2px solid #1a5632;
-            background-color: #f4fbf7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .amount-val {
-            font-size: 15pt;
-            font-weight: bold;
-            color: #1a5632;
-        }
-        .amount-status {
-            font-weight: bold;
-            text-transform: uppercase;
-            color: #16a34a;
-            border: 2px solid #16a34a;
-            padding: 4px 12px;
-            border-radius: 4px;
-            letter-spacing: 1px;
-        }
-        .sig-section {
-            margin-top: 30px;
+        .items-table {
             width: 100%;
-            display: flex;
-            justify-content: space-between;
-            font-size: 10pt;
-            page-break-inside: avoid;
+            border-collapse: collapse;
+            margin-bottom: 5px;
         }
-        .sig-box {
-            width: 220px;
+        .items-table th {
+            background-color: #f5f5f5;
+            border: 0.75px solid #000;
+            padding: 4px 5px;
+            font-size: 8.2pt;
+            font-weight: bold;
+            color: #222;
             text-align: center;
         }
-        @media print {
-            .no-print { display: none !important; }
-            body { padding: 0; }
+        .items-table td {
+            border: 0.75px solid #000;
+            padding: 4px 5px;
+            font-size: 8.2pt;
+            color: #222;
         }
-        .btn-print {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #16a34a;
-            color: white;
-            border: none;
-            padding: 9px 18px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-family: sans-serif;
-            font-size: 12px;
+        .terbilang-text {
+            font-size: 8.2pt;
+            font-style: italic;
+            color: #222;
+            margin: 5px 0 10px 0;
+        }
+        .sig-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .sig-table td {
+            vertical-align: top;
+            font-size: 8.2pt;
+        }
+        .qr-img {
+            width: 52px;
+            height: 52px;
+            display: block;
+            margin: 4px 0;
+        }
+        .sig-name {
             font-weight: bold;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            font-size: 8.2pt;
+            color: #222;
+            border-bottom: 0.75px solid #222;
+            display: inline-block;
+            margin-top: 2px;
+            padding-bottom: 1px;
+        }
+        .sig-unit {
+            font-size: 6.8pt;
+            color: #333;
+            margin-top: 3px;
+        }
+        .footer-divider {
+            border-top: 0.75px dashed #ccc;
+            margin-top: 12px;
+            padding-top: 3px;
+        }
+        .footer-note {
+            font-size: 6pt;
+            color: #777;
         }
     </style>
 </head>
 <body>
-    <button class="btn-print no-print" onclick="window.print()">🖨️ Cetak Kwitansi</button>
-
-    <!-- Kop Surat -->
+    <!-- Kop Kwitansi -->
     <table class="header-table">
         <tr>
-            <td style="width: 90px; text-align: center;">
-                <img src="{{ asset('logo.PNG') }}" alt="Logo" class="logo-img" onerror="this.src='/logo.PNG'">
+            <td class="logo-td">
+                @if(!empty($logoBase64))
+                    <img src="{{ $logoBase64 }}" class="logo-img" alt="Logo">
+                @endif
             </td>
-            <td class="inst-title">
-                <h3>SEKOLAH TINGGI ILMU TARBIYAH (STIT)</h3>
-                <h2>MAMBAUL HIKMAH</h2>
-                <p>Jl. Pesantren No. 01, Mambaul Hikmah, Tegal, Jawa Tengah</p>
-                <p>Website: stitmambaulhikmah.ac.id | Email: info@stitmambaulhikmah.ac.id</p>
+            <td class="header-text">
+                <div class="header-title-main">KWITANSI PEMBAYARAN MAHASISWA</div>
+                <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div>
+                <div class="header-title-inst">{{ $institutionName ?? 'Pascasarjana Universitas Islam Internasional Darullughah Wadda\'wah' }}</div>
+                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya KH Muhammad Barmawi' }} | WhatsApp : {{ $institutionPhone ?? '0852-3519-7238' }} | Email : {{ $institutionEmail ?? 'admin@uiidalwa.ac.id' }}</div>
             </td>
-            <td style="width: 90px;"></td>
+        </tr>
+    </table>
+    <div class="header-divider"></div>
+
+    <!-- Info Mahasiswa & Bukti Bayar -->
+    <table class="meta-table">
+        <tr>
+            <td style="width: 14%;">Nomor Bukti</td>
+            <td style="width: 38%;">: <strong>{{ $payment->invoice_number }}</strong></td>
+            <td style="width: 10%;">NIM</td>
+            <td style="width: 38%;">: <strong>{{ $mahasiswa->nim }}</strong></td>
+        </tr>
+        <tr>
+            <td>Tanggal</td>
+            <td>: {{ $tanggalPembayaran ?? ($payment->payment_date ? $payment->payment_date->translatedFormat('d F Y') : ($payment->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'))) }}</td>
+            <td>Nama</td>
+            <td>: <strong>{{ strtoupper($mahasiswa->user->name) }}</strong></td>
+        </tr>
+        <tr>
+            <td>Program Studi</td>
+            <td colspan="3">: {{ $mahasiswa->prodi?->jenjang ?? 'S1' }} - {{ $mahasiswa->prodi?->nama }}</td>
         </tr>
     </table>
 
-    <div class="receipt-title">
-        <h4>BUKTI PEMBAYARAN AKADEMIK (KWITANSI)</h4>
-        <p>NO. INVOICE: {{ $payment->invoice_number }}</p>
-    </div>
-
-    <table class="content-table">
-        <tr>
-            <td class="label">Telah Diterima Dari</td>
-            <td class="colon">:</td>
-            <td><strong>{{ $payment->mahasiswa->user->name }}</strong></td>
-        </tr>
-        <tr>
-            <td class="label">Nomor Induk Mahasiswa (NIM)</td>
-            <td class="colon">:</td>
-            <td style="font-family: monospace;">{{ $payment->mahasiswa->nim }}</td>
-        </tr>
-        <tr>
-            <td class="label">Program Studi / Fakultas</td>
-            <td class="colon">:</td>
-            <td>{{ $payment->mahasiswa->prodi->nama }} / {{ $payment->mahasiswa->prodi->fakultas->nama }}</td>
-        </tr>
-        <tr>
-            <td class="label">Tahun Masuk / Angkatan</td>
-            <td class="colon">:</td>
-            <td>{{ $payment->mahasiswa->angkatan }}</td>
-        </tr>
-        <tr>
-            <td class="label">Untuk Pembayaran</td>
-            <td class="colon">:</td>
-            <td><strong>{{ $payment->paymentType->name }}</strong> @if($payment->paymentType->semester) (Semester {{ $payment->paymentType->semester }}) @endif</td>
-        </tr>
-        <tr>
-            <td class="label">Metode Pembayaran</td>
-            <td class="colon">:</td>
-            <td>{{ $payment->payment_method ?? 'Tunai' }}</td>
-        </tr>
-        <tr>
-            <td class="label">Tanggal Pelunasan</td>
-            <td class="colon">:</td>
-            <td>{{ $payment->payment_date ? $payment->payment_date->translatedFormat('d F Y') : ($payment->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : '-') }}</td>
-        </tr>
-        @if($payment->notes)
-        <tr>
-            <td class="label">Keterangan / Catatan</td>
-            <td class="colon">:</td>
-            <td>{{ $payment->notes }}</td>
-        </tr>
-        @endif
+    <!-- Tabel Rincian Pembayaran -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">No.</th>
+                <th style="width: 38%;">Nama Pembayaran</th>
+                <th style="width: 16%;">Dibayarkan (Rp.)</th>
+                <th style="width: 11%;">Keterangan</th>
+                <th style="width: 18%;">Kekurangan Bayar (Rp.)</th>
+                <th style="width: 12%;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="text-align: center;">1</td>
+                <td>{{ strtoupper($payment->paymentType->name) }} (Rp {{ number_format($payment->amount, 0, ',', '.') }})</td>
+                <td style="text-align: right;">{{ number_format($payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount, 0, ',', '.') }}</td>
+                <td style="text-align: center;">{{ $payment->notes && !str_starts_with($payment->notes, 'Kewajiban') ? $payment->notes : '-' }}</td>
+                <td style="text-align: right;">{{ number_format($payment->remaining_amount, 0, ',', '.') }}</td>
+                <td style="text-align: center; font-weight: bold;">{{ strtoupper($payment->isPaid() ? 'LUNAS' : $payment->status) }}</td>
+            </tr>
+        </tbody>
     </table>
 
-    <div class="amount-box">
-        <div>
-            <div style="font-size: 9pt; color: #555; text-transform: uppercase;">Jumlah Uang:</div>
-            <div class="amount-val">Rp {{ number_format($payment->paid_amount, 0, ',', '.') }}</div>
-        </div>
-        <div class="amount-status">
-            LUNAS
-        </div>
+    <!-- Terbilang -->
+    <div class="terbilang-text">
+        Terbilang di bayar: # {{ $terbilang }} Rupiah #
     </div>
 
-    <div class="sig-section">
-        <div class="sig-box">
-            <p>Mahasiswa Bersangkutan,</p>
-            <div style="height: 55px;"></div>
-            <p style="font-weight: bold;">{{ $payment->mahasiswa->user->name }}</p>
-            <p style="font-family: monospace; font-size: 9pt;">NIM. {{ $payment->mahasiswa->nim }}</p>
-        </div>
-        <div class="sig-box">
-            <p>Tegal, {{ $payment->payment_date ? $payment->payment_date->translatedFormat('d F Y') : now()->translatedFormat('d F Y') }}</p>
-            <p>Bagian Administrasi & Keuangan,</p>
-            <div style="height: 40px;"></div>
-            <p style="font-weight: bold;">{{ $payment->confirmedBy->name ?? 'Bendahara STIT MH' }}</p>
-            <p style="font-size: 9pt;">STIT Mambaul Hikmah</p>
-        </div>
+    <!-- Tanda Tangan & QR Verification -->
+    <table class="sig-table">
+        <tr>
+            <td style="width: 50%;">
+                <table style="border-collapse: collapse; margin-left: 55px;">
+                    <tr>
+                        <td style="border: none; padding: 0 0 6px 0; font-size: 8.2pt; color: #222;">Yang Menerima,</td>
+                    </tr>
+                    <tr>
+                        <td style="border: none; padding: 0 0 6px 0;">
+                            @if(!empty($qrBase64))
+                                <img src="{{ $qrBase64 }}" style="width: 52px; height: 52px; display: block;" alt="QR Verifikasi">
+                            @else
+                                <div style="height: 52px;"></div>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="border: none; padding: 0 0 2px 0;">
+                            <span class="sig-name">{{ $payment->confirmedBy?->name ?? 'Dzulkifli R. Takuloe' }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="border: none; padding: 0; font-size: 6.8pt; color: #333;">
+                            Bagian Keuangan {{ $institutionShortName ?? 'Pascasarjana UII Dalwa' }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="width: 50%; text-align: right; padding-right: 15px; vertical-align: top;">
+                <div style="font-size: 8.2pt; color: #222;">{{ $kota ?? 'Bangil' }}, {{ $tanggalCetak ?? now()->translatedFormat('d F Y') }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Footer Note -->
+    <div class="footer-divider"></div>
+    <div class="footer-note">
+        Catatan: Simpanlah kwitansi ini sebagai bukti pembayaran yang sah. Dicetak otomatis oleh SIAKADPASCA v2.0.
     </div>
 </body>
 </html>

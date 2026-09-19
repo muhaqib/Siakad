@@ -2,19 +2,23 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\File;
-use App\Models\Mahasiswa;
 use App\Models\AiConversationLog;
+use App\Models\Mahasiswa;
 use App\Services\AcademicAdvisor\AdvisorContextBuilder;
 use App\Services\AcademicAdvisor\AdvisorGuards;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 class AiAdvisorService
 {
     protected AdvisorContextBuilder $contextBuilder;
+
     protected AdvisorGuards $guards;
-    protected string $apiKey;
+
+    protected ?string $apiKey = null;
+
     protected string $model;
+
     protected string $provider;
 
     protected const MAX_RETRIES = 1;
@@ -25,16 +29,24 @@ class AiAdvisorService
     ) {
         $this->contextBuilder = $contextBuilder;
         $this->guards = $guards;
-        
-        // Get AI provider from config (default: qwen)
-        $this->provider = config('services.ai_provider', 'qwen');
-        
-        if ($this->provider === 'qwen') {
-            $this->apiKey = config('services.qwen.api_key', '');
-            $this->model = config('services.qwen.model', 'Qwen/Qwen3-4B-Instruct-2507');
+
+        // Determine AI provider: fallback to gemini if qwen key is missing and gemini key is available
+        $configuredProvider = config('services.ai_provider') ?: 'gemini';
+        $qwenKey = config('services.qwen.api_key');
+        $geminiKey = config('services.gemini.api_key');
+
+        if ($configuredProvider === 'qwen' && empty($qwenKey) && ! empty($geminiKey)) {
+            $this->provider = 'gemini';
         } else {
-            $this->apiKey = config('services.gemini.api_key', '');
-            $this->model = 'gemini-2.5-flash-lite';
+            $this->provider = (string) $configuredProvider;
+        }
+
+        if ($this->provider === 'qwen') {
+            $this->apiKey = $qwenKey ? (string) $qwenKey : null;
+            $this->model = (string) (config('services.qwen.model') ?: 'Qwen/Qwen3-4B-Instruct-2507');
+        } else {
+            $this->apiKey = $geminiKey ? (string) $geminiKey : null;
+            $this->model = (string) (config('services.gemini.model') ?: 'gemini-2.5-flash-lite');
         }
     }
 
@@ -46,7 +58,7 @@ class AiAdvisorService
         if (empty($this->apiKey)) {
             return [
                 'success' => false,
-                'message' => 'API key Gemini belum dikonfigurasi. Silakan hubungi administrator.',
+                'message' => 'API key AI ('.ucfirst($this->provider).') belum dikonfigurasi. Silakan hubungi administrator.',
             ];
         }
 
@@ -65,7 +77,7 @@ class AiAdvisorService
             // Step 4: Call LLM
             $response = $this->callLlm($systemPrompt, $message, $history);
 
-            if (!$response['success']) {
+            if (! $response['success']) {
                 return $response;
             }
 
@@ -74,7 +86,7 @@ class AiAdvisorService
             // Step 5: Run post-guards
             $guardResult = $this->guards->runPostGuards($context, $output);
 
-            if (!$guardResult['passed']) {
+            if (! $guardResult['passed']) {
                 // Try retry if allowed
                 if ($guardResult['should_retry'] && $guardResult['retry_prompt']) {
                     $retryResponse = $this->retryWithGuardPrompt(
@@ -103,13 +115,13 @@ class AiAdvisorService
                             $guard = $issue['guard'] ?? 'unknown';
                             $debugInfo .= "- Guard: `{$guard}`\n";
                             if (isset($issue['violations'])) {
-                                $debugInfo .= "  - Violations: " . implode(', ', $issue['violations']) . "\n";
+                                $debugInfo .= '  - Violations: '.implode(', ', $issue['violations'])."\n";
                             }
                             if (isset($issue['issue'])) {
                                 $debugInfo .= "  - Issue: {$issue['issue']}\n";
                             }
                             if (isset($issue['invalid_courses'])) {
-                                $debugInfo .= "  - Invalid courses: " . implode(', ', $issue['invalid_courses']) . "\n";
+                                $debugInfo .= '  - Invalid courses: '.implode(', ', $issue['invalid_courses'])."\n";
                             }
                             if (isset($issue['mismatches'])) {
                                 foreach ($issue['mismatches'] as $m) {
@@ -118,7 +130,7 @@ class AiAdvisorService
                             }
                         }
                     }
-                    
+
                     // Log guard-applied conversation
                     $responseTimeMs = (int) ((microtime(true) - $startTime) * 1000);
                     $this->logConversation($mahasiswa, $message, $guardResult['replacement_output'], [
@@ -126,10 +138,10 @@ class AiAdvisorService
                         'guard_applied' => true,
                         'guard_issues' => $guardResult['issues'],
                     ]);
-                    
+
                     return [
                         'success' => true,
-                        'message' => $guardResult['replacement_output'] . $debugInfo,
+                        'message' => $guardResult['replacement_output'].$debugInfo,
                         'guard_applied' => true,
                     ];
                 }
@@ -137,7 +149,7 @@ class AiAdvisorService
 
             // Calculate response time
             $responseTimeMs = (int) ((microtime(true) - $startTime) * 1000);
-            
+
             // Log successful conversation
             $this->logConversation($mahasiswa, $message, $output, [
                 'response_time_ms' => $responseTimeMs,
@@ -153,12 +165,12 @@ class AiAdvisorService
         } catch (\InvalidArgumentException $e) {
             return [
                 'success' => false,
-                'message' => 'Konfigurasi akademik tidak valid: ' . $e->getMessage(),
+                'message' => 'Konfigurasi akademik tidak valid: '.$e->getMessage(),
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'message' => 'Terjadi kesalahan: '.$e->getMessage(),
             ];
         }
     }
@@ -175,7 +187,7 @@ class AiAdvisorService
                 'session_id' => session()->getId(),
                 'question' => $question,
                 'answer' => $answer,
-                'context_summary' => "Semester {$mahasiswa->semester_aktif}, SKS: " . ($metadata['sks_lulus'] ?? 'N/A'),
+                'context_summary' => "Semester {$mahasiswa->semester_aktif}, SKS: ".($metadata['sks_lulus'] ?? 'N/A'),
                 'response_time_ms' => $metadata['response_time_ms'] ?? 0,
                 'model_used' => $this->model,
                 'provider' => $this->provider,
@@ -185,7 +197,7 @@ class AiAdvisorService
             ]);
         } catch (\Exception $e) {
             // Silently fail - don't break main functionality
-            \Log::warning('Failed to log AI conversation: ' . $e->getMessage());
+            \Log::warning('Failed to log AI conversation: '.$e->getMessage());
         }
     }
 
@@ -219,21 +231,21 @@ class AiAdvisorService
         // Add system prompt
         $messages[] = [
             'role' => 'system',
-            'content' => $systemPrompt
+            'content' => $systemPrompt,
         ];
 
         // Add conversation history
         foreach ($history as $msg) {
             $messages[] = [
                 'role' => $msg['role'] === 'user' ? 'user' : 'assistant',
-                'content' => $msg['content']
+                'content' => $msg['content'],
             ];
         }
 
         // Add current message
         $messages[] = [
             'role' => 'user',
-            'content' => $message
+            'content' => $message,
         ];
 
         try {
@@ -245,7 +257,7 @@ class AiAdvisorService
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Terjadi kesalahan koneksi: ' . $e->getMessage(),
+                'message' => 'Terjadi kesalahan koneksi: '.$e->getMessage(),
             ];
         }
     }
@@ -273,10 +285,10 @@ class AiAdvisorService
 
         if ($response->successful()) {
             $data = $response->json();
-            
+
             // OpenAI-compatible response format
             $text = $data['choices'][0]['message']['content'] ?? 'Maaf, saya tidak bisa memberikan respons saat ini.';
-            
+
             // Clean thinking tags if present (Qwen3 uses <think> tags)
             $text = $this->cleanQwenThinkingTags($text);
 
@@ -287,9 +299,10 @@ class AiAdvisorService
         }
 
         $error = $response->json();
+
         return [
             'success' => false,
-            'message' => 'Gagal mendapatkan respons dari AI: ' . ($error['error']['message'] ?? $error['error'] ?? $error['message'] ?? 'Unknown error'),
+            'message' => 'Gagal mendapatkan respons dari AI: '.($error['error']['message'] ?? $error['error'] ?? $error['message'] ?? 'Unknown error'),
         ];
     }
 
@@ -300,7 +313,7 @@ class AiAdvisorService
     {
         $response = Http::timeout(30)
             ->withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Authorization' => 'Bearer '.$this->apiKey,
                 'Content-Type' => 'application/json',
             ])
             ->post('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', [
@@ -321,9 +334,10 @@ class AiAdvisorService
         }
 
         $error = $response->json();
+
         return [
             'success' => false,
-            'message' => 'Gagal mendapatkan respons dari AI: ' . ($error['error']['message'] ?? 'Unknown error'),
+            'message' => 'Gagal mendapatkan respons dari AI: '.($error['error']['message'] ?? 'Unknown error'),
         ];
     }
 
@@ -334,6 +348,7 @@ class AiAdvisorService
     {
         // Remove <think>...</think> blocks
         $text = preg_replace('/<think>.*?<\/think>/s', '', $text);
+
         return trim($text);
     }
 
@@ -352,33 +367,33 @@ class AiAdvisorService
         // Add system prompt
         $messages[] = [
             'role' => 'system',
-            'content' => $systemPrompt
+            'content' => $systemPrompt,
         ];
 
         // Add history
         foreach ($history as $msg) {
             $messages[] = [
                 'role' => $msg['role'] === 'user' ? 'user' : 'assistant',
-                'content' => $msg['content']
+                'content' => $msg['content'],
             ];
         }
 
         // Add original message
         $messages[] = [
             'role' => 'user',
-            'content' => $originalMessage
+            'content' => $originalMessage,
         ];
 
         // Add previous (problematic) output
         $messages[] = [
             'role' => 'assistant',
-            'content' => $previousOutput
+            'content' => $previousOutput,
         ];
 
         // Add guard retry prompt
         $messages[] = [
             'role' => 'user',
-            'content' => $guardPrompt
+            'content' => $guardPrompt,
         ];
 
         try {
@@ -391,11 +406,12 @@ class AiAdvisorService
             if ($result['success']) {
                 $result['is_retry'] = true;
             }
+
             return $result;
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Retry failed: ' . $e->getMessage(),
+                'message' => 'Retry failed: '.$e->getMessage(),
             ];
         }
     }
@@ -454,6 +470,7 @@ PROMPT;
     public function calculateGraduationProgress(Mahasiswa $mahasiswa): array
     {
         $context = $this->contextBuilder->build($mahasiswa);
+
         return $this->contextBuilder->calculateGraduationProgress($context);
     }
 
@@ -463,6 +480,7 @@ PROMPT;
     public function findCourse(Mahasiswa $mahasiswa, string $courseName): ?array
     {
         $context = $this->contextBuilder->build($mahasiswa);
+
         return $this->contextBuilder->findCourseByName($context, $courseName);
     }
 }

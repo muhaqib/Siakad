@@ -93,12 +93,28 @@ test('mahasiswa can view their payments timeline and sees midtrans transfer butt
     $response->assertSee('Pendaftaran Mahasiswa Baru');
     $response->assertSee('Pembayaran Kuliah Semester 1');
     $response->assertSee('Bayar Transfer melalui Midtrans');
-    $response->assertSee('Bayar Transfer (Midtrans)');
+    $response->assertSee('Bayar Sekarang');
 
     $payment = $this->mahasiswaA->payments()->first();
     $showResponse = $this->actingAs($this->userMhsA)->get(route('mahasiswa.payments.show', $payment->id));
     $showResponse->assertSuccessful();
     $showResponse->assertSee('Bayar Transfer melalui Midtrans');
+});
+
+test('mahasiswa can generate and stream receipt directly as pdf', function () {
+    $service = app(PaymentInitializationService::class);
+    $service->initializeStudentPayments($this->mahasiswaA);
+
+    $payment = $this->mahasiswaA->payments()->first();
+    $payment->update([
+        'status' => 'paid',
+        'paid_amount' => $payment->amount,
+        'payment_date' => now(),
+    ]);
+
+    $response = $this->actingAs($this->userMhsA)->get(route('mahasiswa.payments.receipt', $payment->id));
+    $response->assertSuccessful();
+    $response->assertHeader('content-type', 'application/pdf');
 });
 
 test('admin fakultas can only view payments of their own faculty', function () {

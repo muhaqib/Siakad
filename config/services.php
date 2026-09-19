@@ -37,6 +37,7 @@ return [
 
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),
     ],
 
     'groq' => [
@@ -50,6 +51,6 @@ return [
     ],
 
     // AI Provider selection: 'gemini' or 'qwen'
-    'ai_provider' => env('AI_PROVIDER', 'qwen'),
+    'ai_provider' => env('AI_PROVIDER', env('GEMINI_API_KEY') ? 'gemini' : 'qwen'),
 
 ];

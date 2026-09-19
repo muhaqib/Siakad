@@ -183,33 +183,28 @@
 
                         <!-- Status Ringkas Pembayaran -->
                         <td class="px-4 py-3">
-                            @if($m->sisa_tunggakan <= 0)
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
-                                    ✓ Lunas Seluruhnya
-                                </span>
-                            @elseif($m->partial_count > 0)
-                                <div>
+                            <div class="flex flex-wrap items-center gap-1">
+                                @if($m->sisa_tunggakan <= 0)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+                                        ✓ Lunas
+                                    </span>
+                                @elseif($m->partial_count > 0)
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                                        Sedang Mencicil
+                                        Cicilan
                                     </span>
-                                    @if($m->next_payment)
-                                        <div class="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
-                                            Siap: {{ $m->next_payment->paymentType->name ?? 'Heregistrasi' }}
-                                        </div>
-                                    @endif
-                                </div>
-                            @else
-                                <div>
+                                @else
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200">
-                                        {{ $m->unpaid_count }} Belum Lunas
+                                        {{ $m->unpaid_count }} Tagihan
                                     </span>
-                                    @if($m->next_payment)
-                                        <div class="text-[10px] text-siakad-secondary dark:text-gray-400 mt-0.5">
-                                            Urutan: {{ $m->next_payment->paymentType->name ?? 'Heregistrasi' }}
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
+                                @endif
+
+                                @if($m->is_krs_unlocked)
+                                    <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300" title="Dispensasi KRS Aktif">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                                        Dispensasi KRS
+                                    </span>
+                                @endif
+                            </div>
                         </td>
 
                         <!-- Aksi: Menuju Detail Semua Pembayaran -->

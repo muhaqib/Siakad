@@ -7,19 +7,24 @@ use App\Models\Fakultas;
 use App\Models\Mahasiswa;
 use App\Models\Prodi;
 use App\Models\StudentPayment;
+use App\Services\ActivityLogService;
 use App\Services\PaymentAccessService;
 use App\Services\PaymentInitializationService;
 use App\Services\PaymentService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
     public function __construct(
         protected PaymentService $paymentService,
         protected PaymentAccessService $paymentAccessService,
-        protected PaymentInitializationService $initializationService
+        protected PaymentInitializationService $initializationService,
+        protected ActivityLogService $activityLogService
     ) {}
 
     public function index(Request $request)
@@ -158,9 +163,12 @@ class PaymentController extends Controller
         $sisaTunggakan = max(0, $totalKewajiban - $totalDibayar);
         $persenLunas = $totalKewajiban > 0 ? min(100, (int) round(($totalDibayar / $totalKewajiban) * 100)) : 0;
 
+        $recentTransactions = $payments->filter(fn ($p) => $p->isPaid() || (float) $p->paid_amount > 0 || $p->status === 'partial')->values();
+
         return view('admin.payments.student', compact(
             'mahasiswa',
             'payments',
+            'recentTransactions',
             'activeSemester',
             'krsAccess',
             'totalKewajiban',
@@ -169,6 +177,108 @@ class PaymentController extends Controller
             'persenLunas',
             'user'
         ));
+    }
+
+    /**
+     * Buka / Kunci Akses KRS untuk Mahasiswa (Dispensasi Pembayaran).
+     */
+    public function toggleKrsLock(Mahasiswa $mahasiswa): RedirectResponse
+    {
+        $user = Auth::user();
+        $this->paymentService->authorizeStudentAccess($mahasiswa, $user);
+
+        $newStatus = ! $mahasiswa->is_krs_unlocked;
+        $mahasiswa->update(['is_krs_unlocked' => $newStatus]);
+
+        $statusText = $newStatus ? 'DIBUKA (Dispensasi Pembayaran Aktif)' : 'DIKUNCI KEMBALI (Sesuai Syarat Pembayaran)';
+        $msg = "Akses KRS untuk mahasiswa {$mahasiswa->user->name} ({$mahasiswa->nim}) berhasil {$statusText}.";
+
+        $this->activityLogService->log(
+            action: ($newStatus ? 'Buka Kunci KRS' : 'Kunci Akses KRS')." mahasiswa {$mahasiswa->user->name} ({$mahasiswa->nim})",
+            model: $mahasiswa,
+            changes: [
+                'is_krs_unlocked' => $newStatus,
+                'admin' => $user->name,
+            ]
+        );
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Proses Pembayaran Tunai (Cash) Mahasiswa oleh Kasir Admin.
+     */
+    public function cashPay(Request $request, Mahasiswa $mahasiswa): RedirectResponse
+    {
+        $user = Auth::user();
+        $this->paymentService->authorizeStudentAccess($mahasiswa, $user);
+
+        $validated = $request->validate([
+            'payment_date' => 'required|date',
+            'notes' => 'nullable|string|max:500',
+            'reference_number' => 'nullable|string|max:100',
+            'bills' => 'required|array|min:1',
+            'bills.*.id' => 'required|exists:student_payments,id',
+            'bills.*.amount' => 'required|numeric|min:0',
+        ]);
+
+        $bills = collect($validated['bills'])->filter(fn ($b) => (float) ($b['amount'] ?? 0) > 0);
+
+        if ($bills->isEmpty()) {
+            return redirect()->back()->with('error', 'Pilih minimal satu tagihan dengan nominal pembayaran lebih dari Rp 0.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $totalPaid = 0;
+            $processedCount = 0;
+
+            foreach ($bills as $billItem) {
+                $payment = StudentPayment::where('id', $billItem['id'])
+                    ->where('mahasiswa_id', $mahasiswa->id)
+                    ->firstOrFail();
+
+                if ($payment->isPaid()) {
+                    continue;
+                }
+
+                $payAmount = min((float) $billItem['amount'], (float) $payment->remaining_amount);
+
+                if ($payAmount <= 0) {
+                    continue;
+                }
+
+                $refNumber = ! empty($validated['reference_number'] ?? null)
+                    ? $validated['reference_number']
+                    : ('CASH-'.strtoupper(Str::random(8)));
+
+                $payNotes = ! empty($validated['notes'] ?? null)
+                    ? $validated['notes']
+                    : 'Pembayaran Tunai via Kasir Admin';
+
+                $this->paymentService->confirmPayment($payment, [
+                    'payment_date' => $validated['payment_date'],
+                    'payment_method' => 'Tunai',
+                    'pay_amount' => $payAmount,
+                    'reference_number' => $refNumber,
+                    'notes' => $payNotes,
+                ], $user);
+
+                $totalPaid += $payAmount;
+                $processedCount++;
+            }
+
+            DB::commit();
+
+            $formattedTotal = number_format($totalPaid, 0, ',', '.');
+
+            return redirect()->back()->with('success', "Pembayaran tunai sebesar Rp {$formattedTotal} untuk {$processedCount} tagihan berhasil diproses.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Gagal memproses pembayaran tunai: '.$e->getMessage());
+        }
     }
 
     public function show(StudentPayment $payment)

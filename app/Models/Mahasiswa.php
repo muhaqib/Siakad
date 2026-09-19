@@ -18,7 +18,20 @@ class Mahasiswa extends Model
         'dosen_pa_id',
         'angkatan',
         'status',
+        'is_krs_unlocked',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_krs_unlocked' => 'boolean',
+        ];
+    }
 
     public function user()
     {

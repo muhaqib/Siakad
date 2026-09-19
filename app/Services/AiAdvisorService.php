@@ -46,7 +46,7 @@ class AiAdvisorService
             $this->model = (string) (config('services.qwen.model') ?: 'Qwen/Qwen3-4B-Instruct-2507');
         } else {
             $this->apiKey = $geminiKey ? (string) $geminiKey : null;
-            $this->model = (string) (config('services.gemini.model') ?: 'gemini-2.5-flash-lite');
+            $this->model = (string) (config('services.gemini.model') ?: 'gemini-3.5-flash-lite');
         }
     }
 

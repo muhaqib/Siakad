@@ -137,6 +137,16 @@ class PaymentAccessService
     {
         $targetSemester = $semester ?? $this->determineStudentSemester($mahasiswa);
 
+        // Check if Admin has manually unlocked KRS (Dispensasi Pembayaran)
+        if ($mahasiswa->is_krs_unlocked) {
+            return [
+                'allowed' => true,
+                'semester' => $targetSemester,
+                'unpaid_payment' => null,
+                'reason' => 'Akses KRS dibuka secara khusus oleh Admin (Dispensasi Pembayaran).',
+            ];
+        }
+
         // 1. Check registration fee
         if (! $this->isRegistrationPaid($mahasiswa)) {
             $regPayment = $this->getRegistrationPaymentStatus($mahasiswa);

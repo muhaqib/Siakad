@@ -14,6 +14,8 @@ Route::middleware(['auth', 'role:admin', 'fakultas.scope'])->prefix('admin')->na
     // Payments CRUD & Actions
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/student/{mahasiswa}', [PaymentController::class, 'studentPayments'])->name('payments.student');
+    Route::post('/payments/student/{mahasiswa}/toggle-krs', [PaymentController::class, 'toggleKrsLock'])->name('payments.student.toggle-krs');
+    Route::post('/payments/student/{mahasiswa}/cash-pay', [PaymentController::class, 'cashPay'])->name('payments.student.cash-pay');
     Route::get('/payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{payment}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
     Route::post('/payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');

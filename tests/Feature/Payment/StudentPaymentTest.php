@@ -224,11 +224,12 @@ test('admin payments index displays student list and student detail displays all
     $service = app(PaymentInitializationService::class);
     $service->initializeStudentPayments($this->mahasiswaA);
 
-    // Dashboard shows pending payments queue
+    // Dashboard shows KPIs and charts
     $dashboardResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.dashboard'));
     $dashboardResponse->assertSuccessful();
-    $dashboardResponse->assertSee('Daftar Tagihan Mahasiswa yang Harus Dibayar');
-    $dashboardResponse->assertSee('Siap Bayar');
+    $dashboardResponse->assertSee('Dashboard Pembayaran Mahasiswa');
+    $dashboardResponse->assertSee('Penyelesaian Pembayaran Semester Ini');
+    $dashboardResponse->assertSee('Tren Mingguan Pembayaran (Online vs Offline)');
 
     // Payments index shows Mahasiswa list and Detail Tagihan link
     $indexResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.index'));
@@ -240,10 +241,9 @@ test('admin payments index displays student list and student detail displays all
     // Clicking student opens student detail page showing all bills in sequential order
     $studentDetailResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.student', $this->mahasiswaA->id));
     $studentDetailResponse->assertSuccessful();
-    $studentDetailResponse->assertSee('Rincian Semua Tagihan Pembayaran Mahasiswa');
-    $studentDetailResponse->assertSee('Siap Bayar');
-    $studentDetailResponse->assertSee('Menunggu');
-    $studentDetailResponse->assertSee('Buka Kasir / Bayar');
+    $studentDetailResponse->assertSee('Daftar Tagihan Mahasiswa');
+    $studentDetailResponse->assertSee('KASIR PEMBAYARAN TUNAI');
+    $studentDetailResponse->assertSee('Terkunci');
 });
 
 test('admin cannot confirm semester 1 when registration is unpaid without dispensation notes', function () {

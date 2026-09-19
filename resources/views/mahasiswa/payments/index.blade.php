@@ -246,7 +246,7 @@
                                     <th class="pb-2.5 font-semibold">TOTAL</th>
                                     <th class="pb-2.5 font-semibold whitespace-nowrap">TGL TRANS.</th>
                                     <th class="pb-2.5 font-semibold whitespace-nowrap">STATUS</th>
-                                    <th class="pb-2.5 font-semibold text-right">AKSI</th>
+                                    <th class="pb-2.5 font-semibold text-right">Kwitansi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
@@ -278,8 +278,8 @@
                                             @endif
                                         </td>
                                         <td class="py-3 text-right whitespace-nowrap">
-                                            @if($trx->isPaid())
-                                                <a href="{{ route('mahasiswa.payments.receipt', $trx->id) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-siakad-primary/20 bg-siakad-primary/5 px-2 py-1 text-[11px] font-semibold text-siakad-primary dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300 transition hover:bg-siakad-primary/10 hover:border-siakad-primary/30" aria-label="Download kwitansi">
+                                            @if($trx->isPaid() || (float)$trx->paid_amount > 0 || $trx->status === 'partial')
+                                                <a href="{{ route('mahasiswa.payments.receipt', $trx->id) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-siakad-primary/20 bg-siakad-primary/5 px-2 py-1 text-[11px] font-semibold text-siakad-primary dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300 transition hover:bg-siakad-primary/10 hover:border-siakad-primary/30" title="Download Kwitansi">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17.5V18a2 2 0 002 2h12a2 2 0 002-2v-.5"/>
                                                     </svg>

@@ -145,174 +145,246 @@
         </div>
     </div>
 
-    <!-- Tagihan Mahasiswa Yang Harus Dibayar (Urutan Berurutan) -->
-    <div class="card-saas overflow-hidden dark:bg-gray-800 mb-8 border-t-4 border-t-[#234C6A]">
-        <div class="px-6 py-4 border-b border-siakad-light dark:border-gray-700 flex items-center justify-between bg-siakad-light/10 dark:bg-gray-900/50">
-            <div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                    <h3 class="font-bold text-sm text-siakad-dark dark:text-white">Daftar Tagihan Mahasiswa yang Harus Dibayar</h3>
+    <!-- ============================================================= -->
+    <!-- CHARTS SECTION: 2 Kolom Chart Utama                           -->
+    <!-- ============================================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-start">
+
+        <!-- --------------------------------------------------------- -->
+        <!-- CHART 1 (5 Kolom): Penyelesaian Pembayaran Semester Ini   -->
+        <!-- --------------------------------------------------------- -->
+        <div class="lg:col-span-5 card-saas p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-siakad-light/70 dark:border-gray-700">
+            <div class="flex items-start justify-between gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div>
+                    <h3 class="font-bold text-sm text-siakad-dark dark:text-white flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-siakad-primary"></span>
+                        Penyelesaian Pembayaran Semester Ini
+                    </h3>
+                    <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
+                        Status seluruh mahasiswa &bull; {{ $semesterCompletion['active_semester_label'] }}
+                    </p>
                 </div>
-                <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
-                    Ketentuan berurutan: Heregistrasi &rarr; Semester 1 s/d 8. Pembayaran loncat hanya dapat dieksekusi dengan menyertakan keterangan dispensasi.
-                </p>
             </div>
-            <a href="{{ route('admin.payments.index', ['status' => 'unpaid']) }}" class="text-xs font-semibold text-siakad-primary hover:text-siakad-dark dark:text-blue-400 dark:hover:text-blue-300">
-                Lihat Semua Tunggakan &rarr;
-            </a>
+
+            <!-- Chart Doughnut (Style identik dengan Dashboard Utama SIAKAD) -->
+            <div class="h-48 mb-4">
+                <canvas id="semesterCompletionChart"></canvas>
+            </div>
+
+
+            <!-- Rincian Nominal Uang Semester Ini -->
+            <div class="mt-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200/70 dark:border-gray-700 text-xs space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Telah Terbayar Semester Ini:</span>
+                    <span class="font-bold text-siakad-primary dark:text-blue-400 font-mono">
+                        Rp {{ number_format($semesterCompletion['total_nominal_lunas'], 0, ',', '.') }}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">Sisa Tunggakan Semester Ini:</span>
+                    <span class="font-bold text-amber-600 dark:text-amber-400 font-mono">
+                        Rp {{ number_format($semesterCompletion['total_nominal_tunggakan'], 0, ',', '.') }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Progres Pelunasan Per Program Studi -->
+            @if(count($semesterCompletion['prodi_breakdown']) > 0)
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <h4 class="text-[11px] font-bold uppercase tracking-wider text-siakad-secondary dark:text-gray-400 mb-2">
+                    Progres Pelunasan Per Prodi:
+                </h4>
+                <div class="space-y-2">
+                    @foreach($semesterCompletion['prodi_breakdown'] as $prodiName => $pData)
+                        @php
+                            $pctProdi = $pData['total'] > 0 ? round(($pData['lunas'] / $pData['total']) * 100) : 0;
+                        @endphp
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-medium text-siakad-dark dark:text-gray-200 truncate max-w-[200px]">{{ $prodiName }}</span>
+                                <span class="font-mono text-siakad-secondary dark:text-gray-400 text-[11px]">
+                                    {{ $pData['lunas'] }}/{{ $pData['total'] }} mhs ({{ $pctProdi }}%)
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-siakad-primary h-1.5 rounded-full transition-all duration-300" style="width: {{ $pctProdi }}%"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full table-saas text-left text-xs">
-                <thead>
-                    <tr class="bg-siakad-light/30 dark:bg-gray-900 border-b border-siakad-light dark:border-gray-700">
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Invoice</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Mahasiswa</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Prodi</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Jenis Tagihan</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Nominal</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Status Urutan</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-siakad-light/60 dark:divide-gray-700/60 text-siakad-dark dark:text-gray-300">
-                    @forelse($pendingPayments as $p)
-                    <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition">
-                        <td class="px-5 py-3.5 font-mono font-medium text-siakad-primary dark:text-blue-400">
-                            {{ $p->invoice_number }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            <div class="font-semibold text-siakad-dark dark:text-white">{{ $p->mahasiswa->user->name ?? '-' }}</div>
-                            <div class="text-[11px] text-siakad-secondary font-mono">{{ $p->mahasiswa->nim }}</div>
-                        </td>
-                        <td class="px-5 py-3.5">
-                            {{ $p->mahasiswa->prodi->nama ?? '-' }}
-                        </td>
-                        <td class="px-5 py-3.5 font-medium">
-                            {{ $p->paymentType->name ?? '-' }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            <div class="font-bold text-siakad-dark dark:text-white">Rp {{ number_format($p->amount, 0, ',', '.') }}</div>
-                            @if($p->isPartial())
-                                <div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                                    Sisa: Rp {{ number_format($p->remaining_amount, 0, ',', '.') }}
-                                </div>
-                            @endif
-                        </td>
-                        <td class="px-5 py-3.5">
-                            @if(isset($p->is_ready) && $p->is_ready)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    Siap Bayar (Urutan Terdepan)
-                                </span>
-                            @elseif(isset($p->unpaid_prereq) && $p->unpaid_prereq)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200" title="Wajib melunasi {{ $p->unpaid_prereq->paymentType->name }} terlebih dahulu">
-                                    <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                    Menunggu: {{ $p->unpaid_prereq->paymentType->name }} (Wajib Keterangan jika Loncat)
-                                </span>
-                            @elseif($p->isPartial())
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Cicilan (Sisa Rp {{ number_format($p->remaining_amount, 0, ',', '.') }})
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                                    Belum Lunas
-                                </span>
-                            @endif
-                        </td>
-                        <td class="px-5 py-3.5 text-right">
-                            <a href="{{ route('admin.payments.show', $p->id) }}" 
-                               class="btn-primary-saas px-3 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1">
-                                <span>Konfirmasi</span>
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </a>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" class="text-center py-8 text-siakad-secondary dark:text-gray-400">
-                            Tidak ada antrean tagihan yang harus dibayar saat ini.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        <!-- --------------------------------------------------------- -->
+        <!-- CHART 2 (7 Kolom): Tren Mingguan (Online vs Offline)      -->
+        <!-- --------------------------------------------------------- -->
+        <div class="lg:col-span-7 card-saas p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-siakad-light/70 dark:border-gray-700">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                <div>
+                    <h3 class="font-bold text-sm text-siakad-dark dark:text-white flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-siakad-secondary"></span>
+                        Tren  Pembayaran Mingguan
+                    </h3>
+                    <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
+                        Frekuensi transaksi via Online  &amp; Offline per minggu
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-siakad-primary/10 text-siakad-primary dark:bg-blue-900/40 dark:text-blue-300 border border-siakad-primary/20">
+                        <span class="w-2 h-2 rounded-full bg-siakad-primary"></span>
+                        Online
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#86c5e0]/20 text-siakad-secondary dark:bg-[#86c5e0]/10 dark:text-[#86c5e0] border border-[#86c5e0]/30">
+                        <span class="w-2 h-2 rounded-full bg-[#86c5e0]"></span>
+                        Offline
+                    </span>
+                </div>
+            </div>
+
+            <!-- Chart Bar Mingguan -->
+            <div class="h-64 w-full mb-4">
+                <canvas id="weeklyPaymentChart"></canvas>
+            </div>
         </div>
+
     </div>
 
-    <!-- Recent Transactions Table Card -->
-    <div class="card-saas overflow-hidden dark:bg-gray-800">
-        <div class="px-6 py-4 border-b border-siakad-light dark:border-gray-700 flex items-center justify-between bg-siakad-light/10 dark:bg-gray-900/50">
-            <div>
-                <h3 class="font-semibold text-sm text-siakad-dark dark:text-white">Aktivitas Pembayaran Terkini</h3>
-                <p class="text-xs text-siakad-secondary dark:text-gray-400">10 transaksi atau perubahan status pembayaran terbaru</p>
-            </div>
-            <a href="{{ route('admin.payments.index') }}" class="text-xs font-semibold text-siakad-primary hover:text-siakad-dark dark:text-blue-400 dark:hover:text-blue-300">
-                Lihat Semua &rarr;
-            </a>
-        </div>
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const siakadPrimary = '#234C6A';
+        const siakadSecondary = '#456882';
+        const siakadDark = '#1B3C53';
 
-        <div class="overflow-x-auto">
-            <table class="w-full table-saas text-left text-xs">
-                <thead>
-                    <tr class="bg-siakad-light/30 dark:bg-gray-900 border-b border-siakad-light dark:border-gray-700">
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Invoice</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Mahasiswa</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Prodi</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Jenis Pembayaran</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Nominal</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Tgl Bayar / Konfirmasi</th>
-                        <th class="py-3 px-5 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-siakad-light/60 dark:divide-gray-700/60 text-siakad-dark dark:text-gray-300">
-                    @forelse($recentPayments as $p)
-                    <tr>
-                        <td class="px-5 py-3.5 font-mono font-medium text-siakad-primary dark:text-blue-400">
-                            {{ $p->invoice_number }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            <div class="font-semibold text-siakad-dark dark:text-white">{{ $p->mahasiswa->user->name ?? '-' }}</div>
-                            <div class="text-[11px] text-siakad-secondary font-mono">{{ $p->mahasiswa->nim }}</div>
-                        </td>
-                        <td class="px-5 py-3.5">
-                            {{ $p->mahasiswa->prodi->nama ?? '-' }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            <span class="font-medium">{{ $p->paymentType->name ?? '-' }}</span>
-                        </td>
-                        <td class="px-5 py-3.5 font-semibold">
-                            Rp {{ number_format($p->amount, 0, ',', '.') }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            @if($p->isPaid())
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
-                                    ✓ Lunas
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
-                                    Belum Lunas
-                                </span>
-                            @endif
-                        </td>
-                        <td class="px-5 py-3.5 text-siakad-secondary dark:text-gray-400 text-[11px]">
-                            {{ $p->payment_date ? $p->payment_date->format('d M Y') : ($p->confirmed_at ? $p->confirmed_at->format('d M Y H:i') : '-') }}
-                        </td>
-                        <td class="px-5 py-3.5 text-right">
-                            <a href="{{ route('admin.payments.show', $p->id) }}" class="btn-ghost-saas px-3 py-1 text-xs rounded-lg inline-block">
-                                Detail
-                            </a>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" class="text-center py-8 text-siakad-secondary">Belum ada data transaksi pembayaran.</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+        // =========================================================
+        // 1. Chart Penyelesaian Pembayaran Semester Ini (Doughnut)
+        // =========================================================
+        const completionCtx = document.getElementById('semesterCompletionChart');
+        if (completionCtx) {
+            const lunas = {{ $semesterCompletion['lunas_count'] }};
+            const partial = {{ $semesterCompletion['partial_count'] }};
+            const unpaid = {{ $semesterCompletion['unpaid_count'] }};
+            const total = {{ $semesterCompletion['total_mahasiswa'] }};
+
+            new Chart(completionCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lunas', 'Cicilan / Sebagian', 'Belum Bayar'],
+                    datasets: [{
+                        data: total > 0 ? [lunas, partial, unpaid] : [0, 0, 1],
+                        backgroundColor: total > 0 ? [
+                            siakadPrimary,   // '#234C6A'
+                            '#86c5e0',       // Light Oceanic Blue
+                            '#E3E3E3',       // Light Gray
+                        ] : ['#E3E3E3', '#E3E3E3', '#E3E3E3'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const count = context.raw || 0;
+                                    const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                                    return ` ${context.label}: ${count} mhs (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        // =========================================================
+        // 2. Chart Tren Mingguan Pembayaran (Online vs Offline Bar)
+        // =========================================================
+        const weeklyCtx = document.getElementById('weeklyPaymentChart');
+        if (weeklyCtx) {
+            const weeklyWeeks = @json($weeklyPayments['weeks']);
+            const labels = weeklyWeeks.map(w => w.week_short + ' (' + w.date_range + ')');
+            const onlineData = weeklyWeeks.map(w => w.online_count);
+            const offlineData = weeklyWeeks.map(w => w.offline_count);
+            const onlineAmounts = weeklyWeeks.map(w => w.online_amount);
+            const offlineAmounts = weeklyWeeks.map(w => w.offline_amount);
+
+            new Chart(weeklyCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Online (Midtrans)',
+                            data: onlineData,
+                            backgroundColor: siakadPrimary,
+                            borderRadius: 6,
+                            borderWidth: 0,
+                            maxBarThickness: 24,
+                        },
+                        {
+                            label: 'Offline (Tunai / Kasir)',
+                            data: offlineData,
+                            backgroundColor: '#86c5e0',
+                            borderRadius: 6,
+                            borderWidth: 0,
+                            maxBarThickness: 24,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                font: { size: 10 }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Jumlah Transaksi',
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                footer: function(tooltipItems) {
+                                    const idx = tooltipItems[0].dataIndex;
+                                    const onAmt = new Intl.NumberFormat('id-ID').format(onlineAmounts[idx] || 0);
+                                    const offAmt = new Intl.NumberFormat('id-ID').format(offlineAmounts[idx] || 0);
+                                    return `Nominal Online: Rp ${onAmt}\nNominal Offline: Rp ${offAmt}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+    @endpush
 </x-app-layout>

@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Fakultas;
 use App\Models\Mahasiswa;
+use App\Models\PaymentHistory;
 use App\Models\PaymentType;
 use App\Models\Prodi;
-use App\Models\StudentPayment;
+use App\Models\TahunAkademik;
 use App\Services\PaymentAccessService;
 use App\Services\PaymentService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,48 +37,191 @@ class PaymentDashboardController extends Controller
 
         $stats = $this->paymentService->getStatistics($fakultasId, $filters);
 
-        // Tagihan yang harus dibayar saat ini (unpaid payments)
-        $pendingPaymentsQuery = StudentPayment::with(['mahasiswa.user', 'mahasiswa.prodi', 'paymentType'])
-            ->where('status', 'unpaid')
-            ->orderBy('id', 'asc');
+        $activeTahun = TahunAkademik::where('is_active', true)->first();
 
+        // -------------------------------------------------------------
+        // 1. Chart: Pembayaran Terselesaikan Pada Semester Ini (Seluruh Mahasiswa)
+        // -------------------------------------------------------------
+        $mahasiswaQuery = Mahasiswa::query()->where('status', 'aktif');
         if ($fakultasId) {
-            $pendingPaymentsQuery->forFakultas($fakultasId);
+            $mahasiswaQuery->whereHas('prodi', fn ($q) => $q->where('fakultas_id', $fakultasId));
         }
-
         if (! empty($filters['prodi_id'])) {
-            $pendingPaymentsQuery->whereHas('mahasiswa', fn ($q) => $q->where('prodi_id', $filters['prodi_id']));
+            $mahasiswaQuery->where('prodi_id', $filters['prodi_id']);
+        }
+        if (! empty($filters['angkatan'])) {
+            $mahasiswaQuery->where('angkatan', $filters['angkatan']);
         }
 
-        $pendingPayments = $pendingPaymentsQuery->limit(10)->get();
+        $students = $mahasiswaQuery->with([
+            'payments.paymentType',
+            'prodi',
+        ])->get();
 
-        // Attach sequential prerequisite info without N+1 query
-        $mahasiswaIds = $pendingPayments->pluck('mahasiswa_id')->unique();
-        $unpaidPaymentsByMhs = StudentPayment::with('paymentType')
-            ->whereIn('mahasiswa_id', $mahasiswaIds)
-            ->unpaid()
-            ->get()
-            ->groupBy('mahasiswa_id');
+        $lunasCount = 0;
+        $partialCount = 0;
+        $unpaidCount = 0;
+        $totalNominalLunas = 0;
+        $totalNominalTunggakan = 0;
+        $prodiBreakdown = [];
 
-        $pendingPayments->each(function ($p) use ($unpaidPaymentsByMhs) {
-            $mhsUnpaid = $unpaidPaymentsByMhs->get($p->mahasiswa_id, collect());
-            $pOrder = $p->getSequenceOrder();
-            $prereq = $mhsUnpaid->filter(fn ($up) => $up->id !== $p->id && $up->getSequenceOrder() < $pOrder)
-                ->sortBy(fn ($up) => $up->getSequenceOrder())
-                ->first();
-            $p->unpaid_prereq = $prereq;
-            $p->is_ready = ($prereq === null);
-        });
+        foreach ($students as $student) {
+            $targetSem = ! empty($filters['semester'])
+                ? (int) $filters['semester']
+                : $this->paymentAccessService->determineStudentSemester($student, $activeTahun);
 
-        // Recent transactions
-        $recentPaymentsQuery = StudentPayment::with(['mahasiswa.user', 'mahasiswa.prodi', 'paymentType', 'confirmedBy'])
-            ->orderBy('updated_at', 'desc')
-            ->limit(10);
+            // Cari tagihan target semester mahasiswa ini
+            $payment = $student->payments->first(function ($p) use ($targetSem) {
+                if (! $p->paymentType) {
+                    return false;
+                }
+                // Jika semester 1 dan biaya pendaftaran belum lunas, jadikan prioritas
+                if ($targetSem === 1 && $p->paymentType->category === 'registration' && ! $p->isPaid()) {
+                    return true;
+                }
 
-        if ($fakultasId) {
-            $recentPaymentsQuery->forFakultas($fakultasId);
+                return $p->paymentType->category === 'semester' && $p->paymentType->semester == $targetSem;
+            });
+
+            if (! $payment) {
+                $payment = $student->payments->first(function ($p) use ($targetSem) {
+                    return $p->paymentType && $p->paymentType->semester == $targetSem;
+                });
+            }
+
+            $prodiName = $student->prodi?->nama ?? 'Lainnya';
+            if (! isset($prodiBreakdown[$prodiName])) {
+                $prodiBreakdown[$prodiName] = [
+                    'lunas' => 0,
+                    'cicilan' => 0,
+                    'belum_lunas' => 0,
+                    'total' => 0,
+                ];
+            }
+            $prodiBreakdown[$prodiName]['total']++;
+
+            if ($payment) {
+                if ($payment->isPaid()) {
+                    $lunasCount++;
+                    $totalNominalLunas += (float) $payment->paid_amount;
+                    $prodiBreakdown[$prodiName]['lunas']++;
+                } elseif ($payment->isPartial()) {
+                    $partialCount++;
+                    $totalNominalLunas += (float) $payment->paid_amount;
+                    $totalNominalTunggakan += (float) $payment->remaining_amount;
+                    $prodiBreakdown[$prodiName]['cicilan']++;
+                } else {
+                    $unpaidCount++;
+                    $totalNominalTunggakan += (float) $payment->remaining_amount;
+                    $prodiBreakdown[$prodiName]['belum_lunas']++;
+                }
+            } else {
+                $unpaidCount++;
+                $prodiBreakdown[$prodiName]['belum_lunas']++;
+            }
         }
-        $recentPayments = $recentPaymentsQuery->get();
+
+        $totalMhsSemester = $students->count();
+        $persenSelesai = $totalMhsSemester > 0 ? round(($lunasCount / $totalMhsSemester) * 100, 1) : 0;
+
+        $semesterCompletion = [
+            'total_mahasiswa' => $totalMhsSemester,
+            'lunas_count' => $lunasCount,
+            'partial_count' => $partialCount,
+            'unpaid_count' => $unpaidCount,
+            'persen_selesai' => $persenSelesai,
+            'total_nominal_lunas' => $totalNominalLunas,
+            'total_nominal_tunggakan' => $totalNominalTunggakan,
+            'active_semester_label' => $activeTahun ? ($activeTahun->tahun.' '.$activeTahun->semester) : 'Semester Ini',
+            'prodi_breakdown' => $prodiBreakdown,
+        ];
+
+        // -------------------------------------------------------------
+        // 2. Chart: Tren Mingguan Pembayaran (Online vs Offline)
+        // -------------------------------------------------------------
+        $weeklyData = [];
+        $totalOnlineCount = 0;
+        $totalOfflineCount = 0;
+        $totalOnlineAmount = 0;
+        $totalOfflineAmount = 0;
+
+        // Ambil 8 minggu terakhir hingga minggu ini
+        for ($i = 7; $i >= 0; $i--) {
+            $startOfWeek = Carbon::now()->subWeeks($i)->startOfWeek(); // Senin 00:00:00
+            $endOfWeek = Carbon::now()->subWeeks($i)->endOfWeek();     // Minggu 23:59:59
+
+            $weekShortLabel = 'Mg '.(8 - $i);
+            $weekDateLabel = $startOfWeek->format('d M').' - '.$endOfWeek->format('d M');
+
+            $historiesQuery = PaymentHistory::whereBetween('created_at', [$startOfWeek, $endOfWeek])
+                ->whereIn('action', ['confirmed', 'partial_payment'])
+                ->whereHas('payment', function ($q) use ($fakultasId, $filters) {
+                    if ($fakultasId) {
+                        $q->forFakultas($fakultasId);
+                    }
+                    if (! empty($filters['prodi_id'])) {
+                        $q->whereHas('mahasiswa', fn ($mq) => $mq->where('prodi_id', $filters['prodi_id']));
+                    }
+                    if (! empty($filters['angkatan'])) {
+                        $q->whereHas('mahasiswa', fn ($mq) => $mq->where('angkatan', $filters['angkatan']));
+                    }
+                })
+                ->with('payment');
+
+            $histories = $historiesQuery->get();
+
+            $onlineCount = 0;
+            $offlineCount = 0;
+            $onlineAmount = 0;
+            $offlineAmount = 0;
+
+            foreach ($histories as $h) {
+                $payment = $h->payment;
+                $isOnline = false;
+
+                if ($payment) {
+                    $method = strtolower($payment->payment_method ?? '');
+                    $notes = strtolower($h->notes ?? '');
+                    if (! empty($payment->midtrans_order_id) || in_array($method, ['midtrans', 'qris', 'virtual account', 'transfer']) || str_contains($notes, 'midtrans')) {
+                        $isOnline = true;
+                    }
+                }
+
+                if ($isOnline) {
+                    $onlineCount++;
+                    $onlineAmount += (float) $h->amount;
+                } else {
+                    $offlineCount++;
+                    $offlineAmount += (float) $h->amount;
+                }
+            }
+
+            $totalOnlineCount += $onlineCount;
+            $totalOfflineCount += $offlineCount;
+            $totalOnlineAmount += $onlineAmount;
+            $totalOfflineAmount += $offlineAmount;
+
+            $weeklyData[] = [
+                'week_short' => $weekShortLabel,
+                'date_range' => $weekDateLabel,
+                'online_count' => $onlineCount,
+                'offline_count' => $offlineCount,
+                'online_amount' => $onlineAmount,
+                'offline_amount' => $offlineAmount,
+                'total_count' => $onlineCount + $offlineCount,
+            ];
+        }
+
+        $weeklyPayments = [
+            'weeks' => $weeklyData,
+            'summary' => [
+                'total_online_count' => $totalOnlineCount,
+                'total_offline_count' => $totalOfflineCount,
+                'total_online_amount' => $totalOnlineAmount,
+                'total_offline_amount' => $totalOfflineAmount,
+                'total_transaksi' => $totalOnlineCount + $totalOfflineCount,
+            ],
+        ];
 
         // Filter options
         $fakultasList = $user->isSuperAdmin() ? Fakultas::orderBy('nama')->get() : collect();
@@ -91,8 +236,8 @@ class PaymentDashboardController extends Controller
 
         return view('admin.payments.dashboard', compact(
             'stats',
-            'pendingPayments',
-            'recentPayments',
+            'semesterCompletion',
+            'weeklyPayments',
             'fakultasList',
             'prodiList',
             'angkatanList',

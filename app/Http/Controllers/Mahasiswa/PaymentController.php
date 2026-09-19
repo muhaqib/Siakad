@@ -86,8 +86,8 @@ class PaymentController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        if (! $payment->isPaid()) {
-            return redirect()->back()->with('error', 'Kwitansi hanya dapat dicetak untuk pembayaran yang telah lunas.');
+        if ((float) $payment->paid_amount <= 0 && $payment->status === 'unpaid') {
+            return redirect()->back()->with('error', 'Kwitansi hanya dapat dicetak untuk pembayaran yang telah memiliki transaksi setoran.');
         }
 
         $payment->load(['mahasiswa.user', 'mahasiswa.prodi.fakultas', 'paymentType', 'tahunAkademik', 'confirmedBy']);

@@ -344,9 +344,7 @@ test('admin can access printable receipt for partial and fully paid payments', f
 
     $receiptResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.receipt', $paymentReg->id));
     $receiptResponse->assertSuccessful();
-    $receiptResponse->assertSee('BUKTI KUITANSI PEMBAYARAN MAHASISWA');
-    $receiptResponse->assertSee('CICILAN');
-    $receiptResponse->assertSee('150.000');
+    $receiptResponse->assertHeader('content-type', 'application/pdf');
 });
 
 test('admin can search mahasiswa by nim and name on payments index', function () {

@@ -154,8 +154,8 @@
             <td class="header-text">
                 <div class="header-title-main">KWITANSI PEMBAYARAN MAHASISWA</div>
                 <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div>
-                <div class="header-title-inst">{{ $institutionName ?? 'Pascasarjana Universitas Islam Internasional Darullughah Wadda\'wah' }}</div>
-                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya KH Muhammad Barmawi' }} | WhatsApp : {{ $institutionPhone ?? '0852-3519-7238' }} | Email : {{ $institutionEmail ?? 'admin@uiidalwa.ac.id' }}</div>
+                <div class="header-title-inst">{{ $institutionName ?? 'Sekolah Tinggi Ilmu Tarbiyah Mambaul Hikmah' }}</div>
+                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya Tegalwangi' }} | WhatsApp : {{ $institutionPhone ?? '0813 9375 0612' }} | Email : {{ $institutionEmail ?? 'admin@stitmambaulhikmah.ac.id' }}</div>
             </td>
         </tr>
     </table>
@@ -229,18 +229,18 @@
                     </tr>
                     <tr>
                         <td style="border: none; padding: 0 0 2px 0;">
-                            <span class="sig-name">{{ $payment->confirmedBy?->name ?? 'Dzulkifli R. Takuloe' }}</span>
+                            <span class="sig-name">{{ $payment->confirmedBy?->name ?? 'Muhammad Ziidan Amani' }}</span>
                         </td>
                     </tr>
                     <tr>
                         <td style="border: none; padding: 0; font-size: 6.8pt; color: #333;">
-                            Bagian Keuangan {{ $institutionShortName ?? 'Pascasarjana UII Dalwa' }}
+                            Bagian Keuangan {{ $institutionShortName ?? 'STIT Mambaul Hikmah' }}
                         </td>
                     </tr>
                 </table>
             </td>
             <td style="width: 50%; text-align: right; padding-right: 15px; vertical-align: top;">
-                <div style="font-size: 8.2pt; color: #222;">{{ $kota ?? 'Bangil' }}, {{ $tanggalCetak ?? now()->translatedFormat('d F Y') }}</div>
+                <div style="font-size: 8.2pt; color: #222;">{{ $kota ?? 'Tegal' }}, {{ $tanggalCetak ?? now()->translatedFormat('d F Y') }}</div>
             </td>
         </tr>
     </table>
@@ -248,7 +248,7 @@
     <!-- Footer Note -->
     <div class="footer-divider"></div>
     <div class="footer-note">
-        Catatan: Simpanlah kwitansi ini sebagai bukti pembayaran yang sah. Dicetak otomatis oleh SIAKADPASCA v2.0.
+        Catatan: Simpanlah kwitansi ini sebagai bukti pembayaran yang sah. Dicetak otomatis oleh SIAKADMAWA.
     </div>
 </body>
 </html>

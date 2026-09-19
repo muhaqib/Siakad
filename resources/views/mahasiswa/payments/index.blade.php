@@ -647,16 +647,15 @@
 
         </div>
     </div>
-</x-app-layout>
 
-{{-- ============================================================ --}}
-{{-- Midtrans Snap.js & Alpine.js Logic                           --}}
-{{-- ============================================================ --}}
-@push('scripts')
-<script src="{{ config('midtrans.base_url.snap_js') }}"
-        data-client-key="{{ config('midtrans.client_key') }}"></script>
+    {{-- ============================================================ --}}
+    {{-- Midtrans Snap.js & Alpine.js Logic                           --}}
+    {{-- ============================================================ --}}
+    @push('scripts')
+    <script src="{{ config('midtrans.base_url.snap_js') }}"
+            data-client-key="{{ config('midtrans.client_key') }}"></script>
 
-<script>
+    <script>
 function paymentApp() {
     return {
         isPaying: {{ $initialIsPaying }},
@@ -867,3 +866,4 @@ function paymentApp() {
 }
 </script>
 @endpush
+</x-app-layout>

@@ -257,7 +257,6 @@
             </div>
         </div>
     </div>
-</x-app-layout>
 
 @if(! $payment->isPaid())
 @push('scripts')
@@ -423,3 +422,4 @@ async function payWithMidtrans(paymentId, btn) {
 </script>
 @endpush
 @endif
+</x-app-layout>

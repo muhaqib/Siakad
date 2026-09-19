@@ -792,6 +792,7 @@ function paymentApp() {
                 }
 
                 this.snapToken = data.snap_token;
+                this.redirectUrl = data.redirect_url || '';
                 if (data.invoice) {
                     this.vaNumber = data.invoice;
                 }
@@ -814,6 +815,9 @@ function paymentApp() {
                             console.info('Snap popup ditutup. Mahasiswa tetap berada di layar petunjuk kode bayar.');
                         }
                     });
+                } else if (data.redirect_url) {
+                    // Fallback redirect sesuai standar dokumentasi Midtrans jika Snap popup diblokir browser
+                    window.location.href = data.redirect_url;
                 }
             } catch (error) {
                 this.isLoading = false;
@@ -848,6 +852,8 @@ function paymentApp() {
                         console.info('Snap popup ditutup.');
                     }
                 });
+            } else if (this.redirectUrl) {
+                window.location.href = this.redirectUrl;
             } else {
                 alert('Modul pembayaran Midtrans sedang dimuat. Silakan klik tombol Batalkan dan coba kembali.');
             }

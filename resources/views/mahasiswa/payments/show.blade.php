@@ -261,12 +261,12 @@
 
 @if(! $payment->isPaid())
 @push('scripts')
+<script src="{{ config('midtrans.base_url.snap_js') }}"
+        data-client-key="{{ config('midtrans.client_key') }}"></script>
+
 <script>
-const MIDTRANS_CLIENT_KEY = '{{ config('services.midtrans.client_key') }}';
-const MIDTRANS_IS_PRODUCTION = {{ config('services.midtrans.is_production', false) ? 'true' : 'false' }};
-const SNAP_URL = MIDTRANS_IS_PRODUCTION
-    ? 'https://app.midtrans.com/snap/snap.js'
-    : 'https://app.sandbox.midtrans.com/snap/snap.js';
+const MIDTRANS_CLIENT_KEY = '{{ config('midtrans.client_key') }}';
+const SNAP_URL = '{{ config('midtrans.base_url.snap_js') }}';
 
 function setNominalFull(paymentId, maxAmount) {
     const input = document.getElementById(`input-nominal-${paymentId}`);
@@ -365,7 +365,7 @@ async function payWithMidtrans(paymentId, btn) {
         try {
             await ensureSnapLoaded();
         } catch (snapErr) {
-            console.warn('Snap load:', snapErr);
+            console.warn('Snap load warning:', snapErr);
         }
 
         const payload = {};
@@ -407,6 +407,9 @@ async function payWithMidtrans(paymentId, btn) {
                     console.info('Popup Snap ditutup oleh pengguna.');
                 }
             });
+        } else if (data.redirect_url) {
+            // Fallback sesuai rekomendasi Midtrans docs jika popup diblokir browser
+            window.location.href = data.redirect_url;
         } else {
             alert('Modul pembayaran Midtrans sedang disiapkan. Silakan coba klik tombol kembali.');
         }

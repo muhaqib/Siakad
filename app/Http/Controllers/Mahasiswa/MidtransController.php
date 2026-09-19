@@ -61,15 +61,16 @@ class MidtransController extends Controller
             : $remaining;
 
         try {
-            $token = $this->midtransService->generateSnapToken($payment, $payAmount);
+            $transaction = $this->midtransService->createTransaction($payment, $payAmount);
 
             return response()->json([
-                'snap_token' => $token,
+                'snap_token' => $transaction['token'],
+                'redirect_url' => $transaction['redirect_url'],
                 'client_key' => config('midtrans.client_key'),
                 'payment_id' => $payment->id,
                 'amount' => (int) $payAmount,
                 'invoice' => $payment->invoice_number,
-                'is_installment' => $payAmount < $remaining,
+                'is_installment' => $transaction['is_installment'],
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
@@ -93,7 +94,7 @@ class MidtransController extends Controller
         $payment->refresh();
 
         return match ($payment->status) {
-            'paid' => view('mahasiswa.payments.midtrans-success', compact('payment')),
+            'paid', 'partial' => view('mahasiswa.payments.midtrans-success', compact('payment')),
             'pending' => view('mahasiswa.payments.midtrans-pending', compact('payment')),
             default => view('mahasiswa.payments.midtrans-failed', compact('payment')),
         };

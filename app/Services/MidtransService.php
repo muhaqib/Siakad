@@ -27,7 +27,17 @@ class MidtransService
      *
      * @throws \RuntimeException jika Midtrans mengembalikan error
      */
-    public function generateSnapToken(StudentPayment $payment, ?float $payAmount = null): string
+    /**
+     * Buat transaksi Snap di Midtrans API dan kembalikan token serta redirect_url.
+     *
+     * Memanggil POST /snap/v1/transactions sesuai spesifikasi resmi:
+     * https://docs.midtrans.com/reference/snap-transaction
+     *
+     * @return array{token: string, redirect_url: string, order_id: string, amount: int, is_installment: bool}
+     *
+     * @throws \RuntimeException jika Midtrans mengembalikan error
+     */
+    public function createTransaction(StudentPayment $payment, ?float $payAmount = null): array
     {
         $payment->loadMissing(['mahasiswa.user', 'paymentType']);
 
@@ -44,11 +54,20 @@ class MidtransService
             ? 'Cicilan '.($payment->paymentType->name ?? 'Pembayaran UKT')
             : ($payment->paymentType->name ?? 'Pembayaran UKT');
 
-        // Parameter transaksi yang dikirim ke Midtrans
+        $customerDetails = [
+            'first_name' => substr($user->name ?? $mahasiswa->nim, 0, 50),
+            'email' => $user->email ?? '',
+        ];
+
+        if (! empty($user->phone)) {
+            $customerDetails['phone'] = substr(preg_replace('/[^0-9+]/', '', $user->phone), 0, 19);
+        }
+
+        // Parameter transaksi sesuai dokumentasi resmi Midtrans Snap API
         $params = [
             'transaction_details' => [
                 'order_id' => $orderId,
-                'gross_amount' => $amountToPay, // nominal yang dibayar (cicilan atau lunas)
+                'gross_amount' => $amountToPay,
             ],
             'item_details' => [
                 [
@@ -58,34 +77,18 @@ class MidtransService
                     'name' => substr($itemName, 0, 50),
                 ],
             ],
-            'customer_details' => [
-                'first_name' => $user->name ?? $mahasiswa->nim,
-                'email' => $user->email ?? '',
-                'phone' => $user->phone ?? '',
-                'metadata' => [
-                    'nim' => $mahasiswa->nim,
-                    'invoice' => $payment->invoice_number,
-                    'payment_id' => $payment->id,
-                    'pay_amount' => $amountToPay,
-                    'is_installment' => $isInstallment ? 'true' : 'false',
-                ],
-            ],
-            // Aktifkan semua metode pembayaran yang tersedia
-            'enabled_payments' => [
-                'credit_card', 'mandiri_clickpay', 'cimb_clicks',
-                'bca_klikbca', 'bca_klikpay', 'bri_epay', 'echannel',
-                'permata_va', 'bca_va', 'bni_va', 'bri_va', 'other_va',
-                'gopay', 'indomaret', 'alfamart', 'danamon_online',
-                'akulaku', 'shopeepay', 'qris',
-            ],
-            // Callback URL setelah transaksi selesai di sisi Snap
+            'customer_details' => $customerDetails,
+            'custom_field1' => substr('NIM: '.$mahasiswa->nim.' | Inv: '.$payment->invoice_number, 0, 255),
+            'custom_field2' => (string) $payment->id,
+            'custom_field3' => $isInstallment ? 'Cicilan' : 'Pelunasan',
             'callbacks' => [
                 'finish' => route('mahasiswa.payments.midtrans.finish', $payment->id),
+                'unfinish' => route('mahasiswa.payments.index'),
+                'error' => route('mahasiswa.payments.index'),
             ],
-            // Waktu kadaluarsa token (24 jam)
-            'expiry' => [
-                'unit' => 'hours',
+            'page_expiry' => [
                 'duration' => 24,
+                'unit' => 'hour',
             ],
         ];
 
@@ -94,6 +97,7 @@ class MidtransService
         $response = Http::withHeaders([
             'Authorization' => 'Basic '.$this->serverKeyEncoded(),
             'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
         ])->post($snapUrl, $params);
 
         if (! $response->successful()) {
@@ -106,7 +110,8 @@ class MidtransService
             throw new \RuntimeException('Gagal membuat transaksi Midtrans: '.$errorMessage);
         }
 
-        $token = $response->json('token');
+        $token = (string) $response->json('token');
+        $redirectUrl = (string) ($response->json('redirect_url') ?? '');
 
         // Simpan order_id dan token ke database, set status 'pending'
         $payment->update([
@@ -128,7 +133,25 @@ class MidtransService
             'performed_by' => $mahasiswa->user_id,
         ]);
 
-        return $token;
+        return [
+            'token' => $token,
+            'redirect_url' => $redirectUrl,
+            'order_id' => $orderId,
+            'amount' => $amountToPay,
+            'is_installment' => $isInstallment,
+        ];
+    }
+
+    /**
+     * Generate Snap Token dari Midtrans API (wrapper kemudahan createTransaction).
+     *
+     * @throws \RuntimeException jika Midtrans mengembalikan error
+     */
+    public function generateSnapToken(StudentPayment $payment, ?float $payAmount = null): string
+    {
+        $transaction = $this->createTransaction($payment, $payAmount);
+
+        return $transaction['token'];
     }
 
     /**
@@ -382,6 +405,6 @@ class MidtransService
      */
     public function generateOrderId(StudentPayment $payment): string
     {
-        return 'INV-'.$payment->id.'-'.time();
+        return 'INV-'.$payment->id.'-'.time().'-'.bin2hex(random_bytes(2));
     }
 }

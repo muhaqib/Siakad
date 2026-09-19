@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Models\StudentPayment;
 use Illuminate\Http\Response;
 
 /**
@@ -11,17 +12,50 @@ class KrsException extends SiakadException
 {
     // Error codes for different KRS scenarios
     public const NO_ACTIVE_SEMESTER = 'KRS_NO_ACTIVE_SEMESTER';
+
     public const ALREADY_SUBMITTED = 'KRS_ALREADY_SUBMITTED';
+
     public const ALREADY_LOCKED = 'KRS_LOCKED';
+
     public const CLASS_FULL = 'KRS_CLASS_FULL';
+
     public const COURSE_ALREADY_TAKEN = 'KRS_COURSE_TAKEN';
+
     public const SKS_LIMIT_EXCEEDED = 'KRS_SKS_EXCEEDED';
+
     public const EMPTY_KRS = 'KRS_EMPTY';
+
     public const INVALID_STATUS = 'KRS_INVALID_STATUS';
+
     public const NOT_FOUND = 'KRS_NOT_FOUND';
 
+    public const PAYMENT_REQUIRED = 'KRS_PAYMENT_REQUIRED';
+
     protected string $errorCode = 'KRS_ERROR';
+
     protected int $httpStatus = Response::HTTP_UNPROCESSABLE_ENTITY;
+
+    /**
+     * Create exception for unpaid semester payment
+     */
+    public static function paymentRequired(?int $semester = null, ?StudentPayment $payment = null): self
+    {
+        $message = $semester
+            ? "Pembayaran Semester {$semester} belum dikonfirmasi lunas. Silakan hubungi administrasi fakultas."
+            : 'Pembayaran semester belum dikonfirmasi lunas. Silakan hubungi administrasi fakultas.';
+
+        $e = new self($message);
+        $e->errorCode = self::PAYMENT_REQUIRED;
+        $e->httpStatus = Response::HTTP_PAYMENT_REQUIRED;
+        $e->context = [
+            'semester' => $semester,
+            'payment_id' => $payment?->id,
+            'amount' => $payment?->amount,
+            'status' => $payment?->status,
+        ];
+
+        return $e;
+    }
 
     /**
      * Create exception for no active semester
@@ -31,6 +65,7 @@ class KrsException extends SiakadException
         $e = new self('Tidak ada tahun akademik yang aktif.');
         $e->errorCode = self::NO_ACTIVE_SEMESTER;
         $e->httpStatus = Response::HTTP_SERVICE_UNAVAILABLE;
+
         return $e;
     }
 
@@ -41,6 +76,7 @@ class KrsException extends SiakadException
     {
         $e = new self('KRS sudah disubmit/disetujui. Tidak dapat diubah.');
         $e->errorCode = self::ALREADY_SUBMITTED;
+
         return $e;
     }
 
@@ -51,6 +87,7 @@ class KrsException extends SiakadException
     {
         $e = new self('KRS terkunci. Tidak dapat diubah.');
         $e->errorCode = self::ALREADY_LOCKED;
+
         return $e;
     }
 
@@ -62,6 +99,7 @@ class KrsException extends SiakadException
         $e = new self("Kelas {$className} penuh! Kapasitas: {$capacity}");
         $e->errorCode = self::CLASS_FULL;
         $e->context = ['class' => $className, 'capacity' => $capacity];
+
         return $e;
     }
 
@@ -73,6 +111,7 @@ class KrsException extends SiakadException
         $e = new self("Mata kuliah {$courseName} sudah diambil.");
         $e->errorCode = self::COURSE_ALREADY_TAKEN;
         $e->context = ['course' => $courseName];
+
         return $e;
     }
 
@@ -90,6 +129,7 @@ class KrsException extends SiakadException
             'max_sks' => $maxSks,
             'total' => $total,
         ];
+
         return $e;
     }
 
@@ -100,6 +140,7 @@ class KrsException extends SiakadException
     {
         $e = new self('KRS kosong tidak dapat diajukan.');
         $e->errorCode = self::EMPTY_KRS;
+
         return $e;
     }
 
@@ -111,6 +152,7 @@ class KrsException extends SiakadException
         $e = new self("KRS tidak dalam status {$requiredStatus}. Status saat ini: {$currentStatus}");
         $e->errorCode = self::INVALID_STATUS;
         $e->context = ['current' => $currentStatus, 'required' => $requiredStatus];
+
         return $e;
     }
 
@@ -123,6 +165,7 @@ class KrsException extends SiakadException
         $e->errorCode = self::NOT_FOUND;
         $e->httpStatus = Response::HTTP_NOT_FOUND;
         $e->context = ['krs_id' => $krsId];
+
         return $e;
     }
 }

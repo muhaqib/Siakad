@@ -25,10 +25,18 @@ class Notification extends Model
 
     // Notification Types
     const TYPE_JADWAL_CHANGE = 'jadwal_change';
+
     const TYPE_KRS_APPROVED = 'krs_approved';
+
     const TYPE_KRS_REJECTED = 'krs_rejected';
+
     const TYPE_NILAI_UPDATED = 'nilai_updated';
+
     const TYPE_PRESENSI_WARNING = 'presensi_warning';
+
+    const TYPE_PAYMENT_CONFIRMED = 'payment_confirmed';
+
+    const TYPE_PAYMENT_CANCELLED = 'payment_cancelled';
 
     /**
      * User pemilik notifikasi
@@ -59,7 +67,7 @@ class Notification extends Model
      */
     public function isRead(): bool
     {
-        return !is_null($this->read_at);
+        return ! is_null($this->read_at);
     }
 
     /**
@@ -67,7 +75,7 @@ class Notification extends Model
      */
     public function markAsRead(): void
     {
-        if (!$this->isRead()) {
+        if (! $this->isRead()) {
             $this->update(['read_at' => now()]);
         }
     }
@@ -77,12 +85,14 @@ class Notification extends Model
      */
     public function getIconAttribute(): string
     {
-        return match($this->type) {
+        return match ($this->type) {
             self::TYPE_JADWAL_CHANGE => '📅',
             self::TYPE_KRS_APPROVED => '✅',
             self::TYPE_KRS_REJECTED => '❌',
             self::TYPE_NILAI_UPDATED => '📊',
             self::TYPE_PRESENSI_WARNING => '⚠️',
+            self::TYPE_PAYMENT_CONFIRMED => '💳',
+            self::TYPE_PAYMENT_CANCELLED => '🚫',
             default => '🔔'
         };
     }
@@ -92,12 +102,14 @@ class Notification extends Model
      */
     public function getColorAttribute(): string
     {
-        return match($this->type) {
+        return match ($this->type) {
             self::TYPE_JADWAL_CHANGE => 'blue',
             self::TYPE_KRS_APPROVED => 'emerald',
             self::TYPE_KRS_REJECTED => 'red',
             self::TYPE_NILAI_UPDATED => 'purple',
             self::TYPE_PRESENSI_WARNING => 'amber',
+            self::TYPE_PAYMENT_CONFIRMED => 'emerald',
+            self::TYPE_PAYMENT_CANCELLED => 'red',
             default => 'slate'
         };
     }

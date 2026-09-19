@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -14,7 +15,7 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Create permissions
         $permissions = [
@@ -23,60 +24,70 @@ class RolePermissionSeeder extends Seeder
             'create mahasiswa',
             'edit mahasiswa',
             'delete mahasiswa',
-            
+
             // Dosen management
             'view dosen',
             'create dosen',
             'edit dosen',
             'delete dosen',
-            
+
             // Kelas management
             'view kelas',
             'create kelas',
             'edit kelas',
             'delete kelas',
-            
+
             // Mata Kuliah management
             'view mata kuliah',
             'create mata kuliah',
             'edit mata kuliah',
             'delete mata kuliah',
-            
+
             // KRS management
             'view krs',
             'approve krs',
             'reject krs',
-            
+
             // Nilai management
             'view nilai',
             'input nilai',
-            
+
             // Skripsi management
             'view skripsi',
             'manage skripsi',
-            
+
             // KP management
             'view kp',
             'manage kp',
-            
+
             // User management
             'view users',
             'create users',
             'edit users',
             'delete users',
-            
+
             // Master data
             'manage fakultas',
             'manage prodi',
             'manage tahun akademik',
             'manage ruangan',
-            
+
             // Reports
             'view reports',
             'export reports',
-            
+
             // Announcements
             'manage announcements',
+
+            // Payments
+            'view payments',
+            'create payments',
+            'edit payments',
+            'confirm payments',
+            'cancel payments',
+            'view payment histories',
+            'manage payment types',
+            'export payment reports',
         ];
 
         foreach ($permissions as $permission) {
@@ -84,7 +95,7 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Create roles with permissions
-        
+
         // Superadmin - has all permissions
         $superadmin = Role::firstOrCreate(['name' => 'superadmin']);
         $superadmin->givePermissionTo(Permission::all());
@@ -104,6 +115,8 @@ class RolePermissionSeeder extends Seeder
             'manage ruangan',
             'view reports', 'export reports',
             'manage announcements',
+            'view payments', 'create payments', 'confirm payments', 'cancel payments',
+            'view payment histories', 'export payment reports',
         ]);
 
         // Dosen - can view and input nilai, manage bimbingan

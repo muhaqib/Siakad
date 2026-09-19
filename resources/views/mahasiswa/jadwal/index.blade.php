@@ -1,205 +1,330 @@
 <x-app-layout>
     <x-slot name="header">
-        Jadwal Kuliah
+        Jadwal Perkuliahan
     </x-slot>
 
     @php
-        $today = \Carbon\Carbon::now()->locale('id')->isoFormat('dddd');
         $now = \Carbon\Carbon::now();
-        $hariOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $todayRaw = $now->locale('id')->isoFormat('dddd');
+        // Map Minggu to Ahad if needed
+        $today = ($todayRaw === 'Minggu') ? 'Ahad' : $todayRaw;
+        $allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+        $totalSksCount = $totalSks ?? 0;
+        $totalKelasCount = $totalKelas ?? 0;
+        $activeDaysCount = $jadwalPerHari->filter(fn($list) => $list->isNotEmpty())->count();
     @endphp
 
-    <div x-data="{ selectedDay: '{{ $today }}', viewMode: 'card' }">
+    <div x-data="{ 
+        activeTab: 'all', 
+        selectedDay: '{{ in_array($today, $allDays) ? $today : 'Senin' }}'
+    }" class="space-y-6">
+
         @if(!$activeTA)
-        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-6 text-center max-w-md mx-auto">
-            <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-8 text-center max-w-md mx-auto">
+            <div class="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center mx-auto mb-4 text-amber-600 dark:text-amber-400">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             </div>
-            <h3 class="font-semibold text-amber-800 mb-1">Tidak Ada Tahun Akademik Aktif</h3>
-            <p class="text-sm text-amber-600">Hubungi admin untuk mengaktifkan tahun akademik.</p>
-        </div>
-        @elseif($jadwalPerHari->isEmpty())
-        <div class="card-saas p-10 text-center max-w-md mx-auto">
-            <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            </div>
-            <h3 class="text-lg font-bold text-slate-800 mb-2">Belum Ada Jadwal</h3>
-            <p class="text-slate-500 mb-5">KRS Anda belum diapprove atau belum ada jadwal kuliah.</p>
-            <a href="{{ route('mahasiswa.krs.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-[#234C6A] text-white rounded-lg text-sm font-medium hover:bg-[#1B3C53] transition">
-                Lihat KRS
-            </a>
+            <h3 class="font-bold text-amber-900 dark:text-amber-200 text-lg mb-1">Tahun Akademik Belum Aktif</h3>
+            <p class="text-sm text-amber-700 dark:text-amber-300/80">Saat ini belum ada tahun akademik yang aktif. Silakan hubungi bagian administrasi akademik.</p>
         </div>
         @else
-        
-        <!-- Controls Bar -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <!-- Day Tabs -->
-            <div class="overflow-x-auto pb-1 sm:pb-0">
-                <div class="flex gap-2 min-w-max">
-                    @foreach($hariOrder as $hari)
-                        @php $hasClass = $jadwalPerHari->has($hari); $count = $hasClass ? $jadwalPerHari[$hari]->count() : 0; @endphp
-                        <button 
-                            @click="selectedDay = '{{ $hari }}'"
-                            :class="selectedDay === '{{ $hari }}' ? 'bg-[#234C6A] text-white shadow-md' : '{{ $hasClass ? 'bg-siakad-light dark:bg-slate-700 text-siakad-secondary hover:bg-siakad-light/70 dark:hover:bg-slate-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' }}'"
-                            class="px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 flex items-center gap-1.5"
-                            {{ !$hasClass ? 'disabled' : '' }}>
-                            <span>{{ $hari }}</span>
-                            @if($hasClass)
-                            <span class="text-xs opacity-70">({{ $count }})</span>
-                            @endif
-                        </button>
-                    @endforeach
+
+        <!-- Top Header & Action Controls -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Semester Aktif
+                    </span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">T.A. {{ $activeTA->tahun }} &bull; Semester {{ $activeTA->semester }}</span>
                 </div>
+                <h2 class="text-xl font-bold text-siakad-dark dark:text-white">Jadwal Kuliah Mingguan</h2>
+                <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">Menampilkan jadwal perkuliahan dari Senin sampai Ahad</p>
             </div>
-            
-            <!-- View Toggle -->
-            <div class="flex items-center gap-1 bg-siakad-light dark:bg-slate-700 p-1 rounded-lg self-start sm:self-auto hidden md:block">
-                <button @click="viewMode = 'card'" 
-                    :class="viewMode === 'card' ? 'bg-white shadow-sm text-[#234C6A]' : 'text-slate-400'"
-                    class="p-2 rounded-md transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                </button>
-                <button @click="viewMode = 'compact'" 
-                    :class="viewMode === 'compact' ? 'bg-white shadow-sm text-[#234C6A]' : 'text-slate-400'"
-                    class="p-2 rounded-md transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                </button>
+
+            <div class="flex items-center gap-2.5">
+                <!-- View Mode Switch -->
+                <div class="inline-flex p-1 bg-gray-100 dark:bg-gray-700/60 rounded-xl">
+                    <button type="button" @click="activeTab = 'all'" 
+                            :class="activeTab === 'all' ? 'bg-white dark:bg-gray-800 text-siakad-dark dark:text-white shadow-xs font-semibold' : 'text-gray-500 dark:text-gray-400 font-medium hover:text-gray-800'"
+                            class="px-3 py-1.5 text-xs rounded-lg transition-all duration-150 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        <span>Menyeluruh</span>
+                    </button>
+                    <button type="button" @click="activeTab = 'tab'" 
+                            :class="activeTab === 'tab' ? 'bg-white dark:bg-gray-800 text-siakad-dark dark:text-white shadow-xs font-semibold' : 'text-gray-500 dark:text-gray-400 font-medium hover:text-gray-800'"
+                            class="px-3 py-1.5 text-xs rounded-lg transition-all duration-150 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>Per Hari</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Schedule Content -->
-        @foreach($hariOrder as $hari)
-            @if($jadwalPerHari->has($hari))
-            <div x-show="selectedDay === '{{ $hari }}'" x-cloak class="space-y-4">
-                @foreach($jadwalPerHari[$hari] as $item)
-                @php
-                    $kelas = $item['kelas'];
-                    $jadwal = $item['jadwal'];
-                    $jamMulai = \Carbon\Carbon::parse($jadwal->jam_mulai);
-                    $jamSelesai = \Carbon\Carbon::parse($jadwal->jam_selesai);
-                    $isOngoing = $hari === $today && $now->between($jamMulai, $jamSelesai);
-                @endphp
-                
-                <!-- Card View -->
-                <div x-show="viewMode === 'card'" class="flex gap-5 items-start">
-                    <!-- Time Column -->
-                    <div class="hidden sm:block w-20 flex-shrink-0 text-right pt-5">
-                        <p class="text-lg font-semibold text-siakad-dark">{{ $jamMulai->format('H:i') }}</p>
-                        <p class="text-xs text-siakad-secondary">{{ $jamSelesai->format('H:i') }}</p>
-                    </div>
-                    
-                    <!-- Card -->
-                    <div class="flex-1 card-saas p-4 sm:p-5 hover:shadow-md transition {{ $isOngoing ? 'border-l-[3px] border-l-[#234C6A]' : '' }}">
-                        <!-- Mobile Time Header -->
-                        <div class="md:hidden flex justify-between items-center mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold text-siakad-dark">{{ $jamMulai->format('H:i') }}</span>
-                                <span class="text-gray-400 text-xs">-</span>
-                                <span class="text-sm text-siakad-secondary">{{ $jamSelesai->format('H:i') }}</span>
-                            </div>
-                            @if($isOngoing)
-                            <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-medium rounded-full flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                Berlangsung
-                            </span>
-                            @endif
-                        </div>
+        <!-- Quick Summary Metrics -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">TOTAL BEBAN SKS</p>
+                <p class="text-2xl font-bold text-siakad-dark dark:text-white mt-1">{{ $totalSksCount }} <span class="text-xs font-normal text-gray-500">SKS</span></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">MATA KULIAH</p>
+                <p class="text-2xl font-bold text-siakad-dark dark:text-white mt-1">{{ $totalKelasCount }} <span class="text-xs font-normal text-gray-500">Kelas</span></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">HARI AKTIF</p>
+                <p class="text-2xl font-bold text-siakad-dark dark:text-white mt-1">{{ $activeDaysCount }} <span class="text-xs font-normal text-gray-500">Hari / Minggu</span></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-xs">
+                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">HARI INI</p>
+                <p class="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    {{ $today }}
+                </p>
+            </div>
+        </div>
 
-                        <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 bg-siakad-light dark:bg-slate-700 text-siakad-secondary text-xs font-semibold rounded">{{ $kelas->mataKuliah->kode_mk }}</span>
-                                <span class="text-xs text-siakad-secondary">{{ $kelas->mataKuliah->sks }} SKS</span>
-                            </div>
-                            @if($isOngoing)
-                            <span class="hidden md:flex px-2 py-1 bg-emerald-50 text-emerald-600 text-xs font-medium rounded-full items-center gap-1">
-                                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                Berlangsung
-                            </span>
-                            @endif
-                        </div>
-                        
-                        <h4 class="font-semibold text-siakad-dark mb-1">{{ $kelas->mataKuliah->nama_mk }}</h4>
-                        <p class="text-sm text-siakad-secondary mb-3">Kelas {{ $kelas->nama_kelas }}</p>
-                        
-                        <div class="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 text-sm">
-                            <span class="flex items-center gap-1.5 text-siakad-secondary">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                {{ $kelas->dosen->user->name ?? 'TBA' }}
-                            </span>
-                            @if($jadwal->ruangan)
-                            <span class="flex items-center gap-1.5 text-[#234C6A] bg-[#234C6A]/10 px-2 py-1 rounded font-medium">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
-                                {{ $jadwal->ruangan }}
-                            </span>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Compact View -->
-                <div x-show="viewMode === 'compact'" class="card-saas px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 {{ $isOngoing ? 'border-l-[3px] border-l-[#234C6A]' : '' }}">
-                    <div class="sm:w-24 flex-shrink-0">
-                        <span class="font-semibold text-siakad-dark">{{ $jamMulai->format('H:i') }}</span>
-                        <span class="text-siakad-secondary mx-1">—</span>
-                        <span class="text-siakad-secondary">{{ $jamSelesai->format('H:i') }}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-0.5">
-                            <span class="text-xs text-siakad-secondary">{{ $kelas->mataKuliah->kode_mk }}</span>
-                            <span class="font-semibold text-siakad-dark">{{ $kelas->mataKuliah->nama_mk }}</span>
-                            @if($isOngoing)
-                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                            @endif
-                        </div>
-                        <p class="text-sm text-siakad-secondary">{{ $kelas->dosen->user->name ?? 'TBA' }} • Kelas {{ $kelas->nama_kelas }}</p>
-                    </div>
-                    @if($jadwal->ruangan)
-                    <span class="text-[#234C6A] bg-[#234C6A]/10 px-3 py-1.5 rounded font-medium text-sm flex-shrink-0">
-                        {{ $jadwal->ruangan }}
-                    </span>
+        <!-- Per-Day Filter Bar (Only shown in 'tab' mode) -->
+        <div x-show="activeTab === 'tab'" x-cloak class="overflow-x-auto pb-1">
+            <div class="flex items-center gap-2 min-w-max">
+                @foreach($allDays as $hari)
+                @php
+                    $list = $jadwalPerHari->get($hari, collect());
+                    $count = $list->count();
+                    $isHariIni = ($hari === $today);
+                @endphp
+                <button type="button" 
+                        @click="selectedDay = '{{ $hari }}'"
+                        :class="selectedDay === '{{ $hari }}' 
+                            ? 'bg-[#234C6A] text-white shadow-sm font-semibold' 
+                            : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300'"
+                        class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-150 flex items-center gap-2">
+                    <span>{{ $hari }}</span>
+                    @if($isHariIni)
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400" title="Hari Ini"></span>
                     @endif
-                </div>
+                    <span :class="selectedDay === '{{ $hari }}' ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'"
+                          class="px-1.5 py-0.5 rounded-md text-[10px] font-bold">
+                        {{ $count }}
+                    </span>
+                </button>
                 @endforeach
             </div>
-            @endif
-        @endforeach
+        </div>
 
-        <!-- Summary -->
-        <div class="mt-8 bg-[#1B3C53] rounded-2xl p-4 sm:p-6">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <!-- DOCUMENT SHEET CONTAINER (PDF Preview Style) -->
+        <!-- VIEW: MENYELURUH (All Days) -->
+        <div x-show="activeTab === 'all'">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
+                <!-- Document Header Info -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-8 mb-6 text-xs sm:text-sm">
+                    <div class="space-y-1.5">
+                        <div class="flex">
+                            <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Nama Mahasiswa</span>
+                            <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                            <span class="font-bold text-gray-900 dark:text-white">{{ $mahasiswa->user->name }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">NIM</span>
+                            <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                            <span class="font-bold text-gray-900 dark:text-white">{{ $mahasiswa->nim }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Semester / Angkatan</span>
+                            <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                            <span class="text-gray-900 dark:text-white">Angkatan {{ $mahasiswa->angkatan ?? '-' }}</span>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-white font-semibold">Ringkasan Jadwal</p>
-                        <p class="text-white/60 text-sm">{{ $activeTA->tahun }} • Semester {{ $activeTA->semester }}</p>
+                    <div class="space-y-1.5">
+                        <div class="flex">
+                            <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Program Studi</span>
+                            <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                            <span class="text-gray-900 dark:text-white">{{ $mahasiswa->prodi->nama ?? '-' }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Dosen Pembimbing</span>
+                            <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                            <span class="text-gray-900 dark:text-white">{{ $mahasiswa->dosenPa->user->name ?? '-' }}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex justify-between w-full sm:w-auto sm:justify-start gap-4 sm:gap-8">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </div>
-                        <div>
-                            <p class="text-white text-xl font-bold">{{ $jadwalPerHari->flatten(1)->count() }}</p>
-                            <p class="text-white/60 text-xs">Sesi Kuliah</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        </div>
-                        <div>
-                            <p class="text-white text-xl font-bold">{{ $jadwalPerHari->keys()->count() }}</p>
-                            <p class="text-white/60 text-xs">Hari Aktif</p>
-                        </div>
-                    </div>
+
+                <!-- PDF Style Schedule Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse border border-black dark:border-gray-600 text-xs sm:text-[13px] text-gray-900 dark:text-gray-100">
+                        <thead>
+                            <tr class="font-bold text-center bg-gray-50/80 dark:bg-gray-700/50">
+                                <th class="border border-black dark:border-gray-600 px-2.5 py-2 w-10 text-center font-bold">No</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 w-20 text-center font-bold">Hari</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 w-28 text-center font-bold">Waktu</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 w-20 text-center font-bold">Kode MK</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">Mata Kuliah</th>
+                                <th class="border border-black dark:border-gray-600 px-2 py-2 w-14 text-center font-bold">SKS</th>
+                                <th class="border border-black dark:border-gray-600 px-2 py-2 w-14 text-center font-bold">Kelas</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 w-28 text-center font-bold">Ruang</th>
+                                <th class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">Dosen Pengampu</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $no = 1; $hasAnySchedule = false; @endphp
+                            @foreach($hariOrder as $hari)
+                                @php $list = $jadwalPerHari->get($hari, collect()); @endphp
+                                @foreach($list as $item)
+                                    @php
+                                        $hasAnySchedule = true;
+                                        $jamMulai = \Carbon\Carbon::parse($item['jadwal']->jam_mulai)->format('H:i');
+                                        $jamSelesai = \Carbon\Carbon::parse($item['jadwal']->jam_selesai)->format('H:i');
+                                    @endphp
+                                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $no++ }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">{{ $hari }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center whitespace-nowrap">{{ $jamMulai }} - {{ $jamSelesai }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center font-mono">{{ $item['kelas']->mataKuliah->kode_mk }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-left">{{ $item['kelas']->mataKuliah->nama_mk }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $item['kelas']->mataKuliah->sks }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $item['kelas']->nama_kelas }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center">{{ $item['jadwal']->ruangan ?? '-' }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-left">{{ $item['kelas']->dosen->user->name ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            @endforeach
+
+                            @if(!$hasAnySchedule)
+                                <tr>
+                                    <td colspan="9" class="border border-black dark:border-gray-600 px-4 py-8 text-center text-gray-500 italic">
+                                        Belum ada jadwal perkuliahan yang disetujui untuk semester ini.
+                                    </td>
+                                </tr>
+                            @endif
+
+                            <tr class="font-bold bg-gray-50/30 dark:bg-gray-800/40">
+                                <td colspan="5" class="border border-black dark:border-gray-600 px-3 py-2 text-right font-bold">
+                                    Total SKS Terjadwal
+                                </td>
+                                <td class="border border-black dark:border-gray-600 px-2 py-2 text-center font-bold">
+                                    {{ $totalSksCount }}
+                                </td>
+                                <td colspan="3" class="border border-black dark:border-gray-600 px-3 py-2"></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
+
+        <!-- VIEW: PER HARI (Filtered Table) -->
+        <div x-show="activeTab === 'tab'" x-cloak class="space-y-4">
+            @foreach($allDays as $hari)
+            @php
+                $list = $jadwalPerHari->get($hari, collect());
+                $daySks = $list->sum(fn($i) => $i['kelas']->mataKuliah->sks ?? 0);
+            @endphp
+            <div x-show="selectedDay === '{{ $hari }}'">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 sm:p-8">
+                    <!-- Document Header Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-8 mb-6 text-xs sm:text-sm">
+                        <div class="space-y-1.5">
+                            <div class="flex">
+                                <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Nama Mahasiswa</span>
+                                <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                                <span class="font-bold text-gray-900 dark:text-white">{{ $mahasiswa->user->name }}</span>
+                            </div>
+                            <div class="flex">
+                                <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">NIM</span>
+                                <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                                <span class="font-bold text-gray-900 dark:text-white">{{ $mahasiswa->nim }}</span>
+                            </div>
+                            <div class="flex">
+                                <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Semester / Angkatan</span>
+                                <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                                <span class="text-gray-900 dark:text-white">Angkatan {{ $mahasiswa->angkatan ?? '-' }}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex">
+                                <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Program Studi</span>
+                                <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                                <span class="text-gray-900 dark:text-white">{{ $mahasiswa->prodi->nama ?? '-' }}</span>
+                            </div>
+                            <div class="flex">
+                                <span class="w-36 text-gray-800 dark:text-gray-300 font-medium flex-shrink-0">Dosen Pembimbing</span>
+                                <span class="mr-2 text-gray-800 dark:text-gray-300">:</span>
+                                <span class="text-gray-900 dark:text-white">{{ $mahasiswa->dosenPa->user->name ?? '-' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Single Day Schedule Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse border border-black dark:border-gray-600 text-xs sm:text-[13px] text-gray-900 dark:text-gray-100">
+                            <thead>
+                                <tr class="font-bold text-center bg-gray-50/80 dark:bg-gray-700/50">
+                                    <th class="border border-black dark:border-gray-600 px-2.5 py-2 w-10 text-center font-bold">No</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 w-20 text-center font-bold">Hari</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 w-28 text-center font-bold">Waktu</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 w-20 text-center font-bold">Kode MK</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">Mata Kuliah</th>
+                                    <th class="border border-black dark:border-gray-600 px-2 py-2 w-14 text-center font-bold">SKS</th>
+                                    <th class="border border-black dark:border-gray-600 px-2 py-2 w-14 text-center font-bold">Kelas</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 w-28 text-center font-bold">Ruang</th>
+                                    <th class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">Dosen Pengampu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $dayNo = 1; @endphp
+                                @forelse($list as $item)
+                                    @php
+                                        $jamMulai = \Carbon\Carbon::parse($item['jadwal']->jam_mulai)->format('H:i');
+                                        $jamSelesai = \Carbon\Carbon::parse($item['jadwal']->jam_selesai)->format('H:i');
+                                    @endphp
+                                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $dayNo++ }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center font-bold">{{ $hari }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center whitespace-nowrap">{{ $jamMulai }} - {{ $jamSelesai }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center font-mono">{{ $item['kelas']->mataKuliah->kode_mk }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-left">{{ $item['kelas']->mataKuliah->nama_mk }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $item['kelas']->mataKuliah->sks }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-2 py-2 text-center">{{ $item['kelas']->nama_kelas }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-center">{{ $item['jadwal']->ruangan ?? '-' }}</td>
+                                        <td class="border border-black dark:border-gray-600 px-3 py-2 text-left">{{ $item['kelas']->dosen->user->name ?? '-' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="border border-black dark:border-gray-600 px-4 py-8 text-center text-gray-500 italic">
+                                            Tidak ada jadwal perkuliahan pada hari {{ $hari }}.
+                                        </td>
+                                    </tr>
+                                @endforelse
+
+                                <tr class="font-bold bg-gray-50/30 dark:bg-gray-800/40">
+                                    <td colspan="5" class="border border-black dark:border-gray-600 px-3 py-2 text-right font-bold">
+                                        Total SKS Terjadwal ({{ $hari }})
+                                    </td>
+                                    <td class="border border-black dark:border-gray-600 px-2 py-2 text-center font-bold">
+                                        {{ $daySks }}
+                                    </td>
+                                    <td colspan="3" class="border border-black dark:border-gray-600 px-3 py-2"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <!-- Action Button: Cetak Jadwal (Bottom Right as in contohjadwal.png) -->
+        <div class="flex justify-end pt-2">
+            <a href="{{ route('mahasiswa.export.jadwal') }}" target="_blank" 
+               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#234C6A] hover:bg-[#1B3C53] text-white text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>Cetak Jadwal</span>
+            </a>
+        </div>
+
         @endif
     </div>
-    
+
     <style>[x-cloak] { display: none !important; }</style>
 </x-app-layout>

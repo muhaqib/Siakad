@@ -64,6 +64,9 @@ class Mahasiswa extends Model
     {
         return $this->hasMany(TugasSubmission::class);
     }
+
+    public function payments()
+    {
+        return $this->hasMany(StudentPayment::class);
+    }
 }
-
-

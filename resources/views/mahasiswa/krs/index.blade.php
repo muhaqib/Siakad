@@ -4,6 +4,98 @@
         <span class="hidden md:inline">Kartu Rencana Studi (KRS)</span>
     </x-slot>
 
+    @if(!empty($isLocked) && $isLocked)
+    <!-- Locked State UI -->
+    <div class="py-8 max-w-3xl mx-auto" x-data="{ openContact: false }">
+        <div class="card-saas p-8 text-center space-y-6 bg-white dark:bg-gray-800">
+            <!-- Icon Lock -->
+            <div class="w-20 h-20 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+
+            <!-- Header Text -->
+            <div class="space-y-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+                    Akses Akademik Terkunci
+                </span>
+                <h2 class="text-2xl font-bold text-siakad-dark dark:text-white">KRS Belum Dapat Diakses</h2>
+                <p class="text-sm text-siakad-secondary dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
+                    Pengisian KRS Semester {{ $targetSemester ?? 1 }} belum dapat dilakukan karena pembayaran perkuliahan belum dikonfirmasi lunas oleh Bagian Keuangan STIT Mambaul Hikmah.
+                </p>
+            </div>
+
+            <!-- Payment Details Card -->
+            <div class="card-saas p-5 bg-siakad-light/20 dark:bg-gray-900/50 border border-siakad-light dark:border-gray-700 text-left max-w-md mx-auto space-y-3 text-xs">
+                <div class="flex justify-between items-center border-b border-siakad-light dark:border-gray-700 pb-2">
+                    <span class="text-siakad-secondary dark:text-gray-400">Jenis Pembayaran:</span>
+                    <span class="font-bold text-siakad-dark dark:text-white">{{ $unpaidPayment?->paymentType?->name ?? 'Pembayaran Perkuliahan' }}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-siakad-light dark:border-gray-700 pb-2">
+                    <span class="text-siakad-secondary dark:text-gray-400">Semester Target:</span>
+                    <span class="font-bold text-siakad-dark dark:text-white">Semester {{ $targetSemester ?? 1 }}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-siakad-light dark:border-gray-700 pb-2">
+                    <span class="text-siakad-secondary dark:text-gray-400">Nominal Tagihan:</span>
+                    <span class="font-extrabold text-sm text-siakad-dark dark:text-white">
+                        Rp {{ number_format($unpaidPayment?->amount ?? 1500000, 0, ',', '.') }}
+                    </span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-siakad-secondary dark:text-gray-400">Status Pembayaran:</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+                        {{ strtoupper($unpaidPayment?->status ?? 'UNPAID') }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <a href="{{ route('mahasiswa.payments.index') }}" class="btn-primary-saas w-full sm:w-auto px-6 py-2.5 rounded-lg text-xs font-semibold shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Lihat Rincian Pembayaran
+                </a>
+                <button type="button" @click="openContact = true" class="btn-ghost-saas w-full sm:w-auto px-6 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4 text-siakad-primary dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    Hubungi Keuangan Kampus
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Kontak Administrasi -->
+        <div x-show="openContact" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 text-center">
+                <div x-show="openContact" @click="openContact = false" class="fixed inset-0 bg-siakad-dark/60 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
+                <div x-show="openContact" class="card-saas inline-block align-bottom bg-white dark:bg-gray-800 rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full p-6 space-y-4">
+                    <div class="flex items-center justify-between border-b border-siakad-light dark:border-gray-700 pb-3">
+                        <h3 class="text-sm font-bold text-siakad-dark dark:text-white">Kontak Layanan Keuangan & SPP</h3>
+                        <button type="button" @click="openContact = false" class="text-siakad-secondary hover:text-siakad-dark dark:hover:text-white">✕</button>
+                    </div>
+                    <p class="text-xs text-siakad-secondary dark:text-gray-400">
+                        Silakan hubungi bagian keuangan kampus atau staf administrasi fakultas untuk melakukan konfirmasi pembayaran Anda:
+                    </p>
+                    <div class="space-y-2.5 text-xs">
+                        <div class="p-3.5 bg-siakad-light/20 dark:bg-gray-900/50 rounded-xl border border-siakad-light dark:border-gray-700">
+                            <p class="font-bold text-siakad-dark dark:text-white">Loket Administrasi Keuangan Kampus</p>
+                            <p class="text-siakad-secondary dark:text-gray-400 mt-1">Gedung Rektorat Lt. 1, STIT Mambaul Hikmah Tegal</p>
+                            <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">Jam Layanan: Senin - Sabtu, 08:00 - 15:00 WIB</p>
+                        </div>
+                        <div class="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300">
+                            <p class="font-bold">WhatsApp Layanan Pembayaran & SPP:</p>
+                            <p class="font-mono font-bold mt-1 text-sm text-emerald-700 dark:text-emerald-400">+62 812-3456-7890</p>
+                        </div>
+                    </div>
+                    <div class="pt-2 flex justify-end">
+                        <button type="button" @click="openContact = false" class="btn-ghost-saas px-4 py-2 text-xs font-semibold rounded-lg">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @else
     <!-- Status Banner -->
     <div class="mb-8">
         <div class="bg-siakad-primary rounded-xl p-6 text-white">
@@ -179,4 +271,5 @@
         </div>
         @endif
     </div>
+    @endif
 </x-app-layout>

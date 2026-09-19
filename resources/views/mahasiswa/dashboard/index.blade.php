@@ -5,7 +5,7 @@
 
     <!-- Greeting -->
     <div class="mb-8 hidden md:block">
-        <h1 class="text-2xl font-semibold text-siakad-dark">
+        <h1 class="text-2xl font-semibold text-siakad-dark dark:text-white">
             {{ $greeting }}, {{ explode(' ', $user->name)[0] }}! 
             @php
                 $hour = now()->hour;
@@ -16,8 +16,84 @@
             @endphp
             {{ $emoji }}
         </h1>
-        <p class="text-siakad-secondary text-sm mt-1">Semoga harimu menyenangkan!</p>
+        <p class="text-siakad-secondary dark:text-gray-400 text-sm mt-1">Semoga harimu menyenangkan!</p>
     </div>
+
+    <!-- Jadwal Kuliah Hari Ini (Jika Ada) -->
+    @if(isset($jadwalHariIni) && $jadwalHariIni->isNotEmpty())
+    <div class="mb-8 bg-gradient-to-r from-[#234C6A] to-[#1B3C53] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10 mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold text-white tracking-tight">Jadwal Kuliah Hari Ini</h2>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            {{ $jadwalHariIni->count() }} Mata Kuliah
+                        </span>
+                    </div>
+                    <p class="text-xs text-white/75">{{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}</p>
+                </div>
+            </div>
+
+            <a href="{{ route('mahasiswa.jadwal.index') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition self-start sm:self-auto">
+                <span>Lihat Semua Jadwal</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            @foreach($jadwalHariIni as $item)
+            @php
+                $kelas = $item['kelas'];
+                $jadwal = $item['jadwal'];
+                $jamMulai = \Carbon\Carbon::parse($jadwal->jam_mulai);
+                $jamSelesai = \Carbon\Carbon::parse($jadwal->jam_selesai);
+                $isOngoing = now()->between($jamMulai, $jamSelesai);
+            @endphp
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-4 border {{ $isOngoing ? 'border-emerald-400/60 bg-emerald-950/20' : 'border-white/10 hover:bg-white/15' }} transition">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <span class="font-mono text-xs font-bold px-2 py-0.5 rounded bg-white/15 text-white flex items-center gap-1">
+                        <svg class="w-3 h-3 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        {{ $jamMulai->format('H:i') }} - {{ $jamSelesai->format('H:i') }}
+                    </span>
+                    @if($isOngoing)
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white animate-pulse">
+                        Berlangsung
+                    </span>
+                    @else
+                    <span class="text-[10px] font-medium text-white/70">
+                        {{ $kelas->mataKuliah->sks }} SKS
+                    </span>
+                    @endif
+                </div>
+
+                <h3 class="font-bold text-sm text-white line-clamp-1 mb-0.5">
+                    {{ $kelas->mataKuliah->nama_mk }}
+                </h3>
+                <p class="text-[11px] text-white/70 font-mono mb-2.5">
+                    {{ $kelas->mataKuliah->kode_mk }} &bull; Kelas {{ $kelas->nama_kelas }}
+                </p>
+
+                <div class="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/80">
+                    <span class="truncate max-w-[150px]" title="{{ $kelas->dosen->user->name ?? 'TBA' }}">
+                        {{ $kelas->dosen->user->name ?? 'Dosen TBA' }}
+                    </span>
+                    @if($jadwal->ruangan)
+                    <span class="font-semibold text-cyan-200 bg-white/10 px-2 py-0.5 rounded">
+                        {{ $jadwal->ruangan }}
+                    </span>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Profile & IPK Card -->

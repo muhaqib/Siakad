@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
-use App\Services\AkademikCalculationService;
+use App\Models\Kelas;
 use App\Models\Krs;
 use App\Models\TahunAkademik;
+use App\Services\AkademikCalculationService;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -21,8 +22,8 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $mahasiswa = $user->mahasiswa;
-        
-        if (!$mahasiswa) {
+
+        if (! $mahasiswa) {
             abort(403, 'Unauthorized');
         }
 
@@ -30,22 +31,22 @@ class DashboardController extends Controller
 
         // Calculate IPK
         $ipkData = $this->calculationService->calculateIPK($mahasiswa);
-        
+
         // Get IPS History for chart
         $ipsHistory = $this->calculationService->getIPSHistory($mahasiswa);
-        
+
         // Current semester IPS = last semester with actual grades (IPS > 0)
         $activeTA = TahunAkademik::where('is_active', true)->first();
-        $semestersWithGrades = $ipsHistory->filter(fn($s) => $s['ips'] > 0);
+        $semestersWithGrades = $ipsHistory->filter(fn ($s) => $s['ips'] > 0);
         $lastSemesterWithGrades = $semestersWithGrades->last();
         $currentIps = $lastSemesterWithGrades ? ['ips' => $lastSemesterWithGrades['ips'], 'total_sks' => $lastSemesterWithGrades['total_sks']] : null;
-        
+
         // Max SKS for next semester based on last IPS
         $lastIps = $lastSemesterWithGrades['ips'] ?? 0;
         $maxSks = $this->calculationService->getMaxSKS($lastIps);
 
         // SKS per semester for chart
-        $sksHistory = $ipsHistory->map(fn($s) => [
+        $sksHistory = $ipsHistory->map(fn ($s) => [
             'semester' => $s['tahun_akademik'],
             'sks' => $s['total_sks'],
         ]);
@@ -70,10 +71,38 @@ class DashboardController extends Controller
             $greeting = 'Selamat Malam';
         }
 
+        // Get today's classes from approved KRS
+        $hariIni = now()->locale('id')->isoFormat('dddd');
+        $hariSearch = ($hariIni === 'Minggu') ? ['Ahad', 'Minggu'] : [$hariIni];
+        $jadwalHariIni = collect();
+
+        if ($activeTA) {
+            $kelasList = Kelas::whereHas('krsDetail', function ($q) use ($mahasiswa, $activeTA) {
+                $q->whereHas('krs', fn ($q2) => $q2
+                    ->where('mahasiswa_id', $mahasiswa->id)
+                    ->where('tahun_akademik_id', $activeTA->id)
+                    ->where('status', 'approved')
+                );
+            })->with(['mataKuliah', 'dosen.user', 'jadwal'])->get();
+
+            foreach ($kelasList as $kelas) {
+                foreach ($kelas->jadwal as $jadwal) {
+                    if (in_array($jadwal->hari, $hariSearch)) {
+                        $jadwalHariIni->push([
+                            'kelas' => $kelas,
+                            'jadwal' => $jadwal,
+                        ]);
+                    }
+                }
+            }
+
+            $jadwalHariIni = $jadwalHariIni->sortBy(fn ($j) => $j['jadwal']->jam_mulai)->values();
+        }
+
         return view('mahasiswa.dashboard.index', compact(
             'user', 'mahasiswa', 'ipkData', 'ipsHistory', 'currentIps',
-            'maxSks', 'sksHistory', 'currentKrs', 'gradeDistribution', 
-            'greeting', 'activeTA'
+            'maxSks', 'sksHistory', 'currentKrs', 'gradeDistribution',
+            'greeting', 'activeTA', 'jadwalHariIni', 'hariIni'
         ));
     }
 }

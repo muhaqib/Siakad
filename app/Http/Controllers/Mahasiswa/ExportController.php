@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mahasiswa;
 
 use App\Http\Controllers\Controller;
+use App\Models\Kelas;
 use App\Models\Krs;
 use App\Models\Nilai;
 use App\Models\TahunAkademik;
@@ -25,8 +26,8 @@ class ExportController extends Controller
     {
         $user = Auth::user();
         $mahasiswa = $user->mahasiswa;
-        
-        if (!$mahasiswa) {
+
+        if (! $mahasiswa) {
             abort(403, 'Unauthorized');
         }
 
@@ -54,8 +55,8 @@ class ExportController extends Controller
     {
         $user = Auth::user();
         $mahasiswa = $user->mahasiswa;
-        
-        if (!$mahasiswa) {
+
+        if (! $mahasiswa) {
             abort(403, 'Unauthorized');
         }
 
@@ -67,14 +68,14 @@ class ExportController extends Controller
             ->where('status', 'approved')
             ->first();
 
-        if (!$krs) {
+        if (! $krs) {
             return redirect()->back()->with('error', 'KRS untuk semester ini belum diapprove');
         }
 
         // Get all grades for this semester
         $nilaiList = Nilai::where('mahasiswa_id', $mahasiswa->id)
             ->whereHas('kelas', function ($q) use ($tahunAkademik) {
-                $q->whereHas('krsDetail.krs', fn($q2) => $q2->where('tahun_akademik_id', $tahunAkademik->id));
+                $q->whereHas('krsDetail.krs', fn ($q2) => $q2->where('tahun_akademik_id', $tahunAkademik->id));
             })
             ->with(['kelas.mataKuliah', 'kelas.dosen.user'])
             ->get()
@@ -87,5 +88,60 @@ class ExportController extends Controller
         $ipkData = $this->calculationService->calculateIPK($mahasiswa);
 
         return view('mahasiswa.export.khs', compact('mahasiswa', 'tahunAkademik', 'nilaiList', 'ipsData', 'ipkData'));
+    }
+
+    /**
+     * Export Jadwal Kuliah as printable HTML (PDF-ready)
+     */
+    public function jadwal()
+    {
+        $user = Auth::user();
+        $mahasiswa = $user->mahasiswa;
+
+        if (! $mahasiswa) {
+            abort(403, 'Unauthorized');
+        }
+
+        $mahasiswa->load(['prodi.fakultas', 'dosenPa.user']);
+        $activeTA = TahunAkademik::where('is_active', true)->first();
+
+        if (! $activeTA) {
+            return redirect()->back()->with('error', 'Tidak ada tahun akademik aktif');
+        }
+
+        // Get approved classes
+        $kelasList = Kelas::whereHas('krsDetail', function ($q) use ($mahasiswa, $activeTA) {
+            $q->whereHas('krs', fn ($q2) => $q2
+                ->where('mahasiswa_id', $mahasiswa->id)
+                ->where('tahun_akademik_id', $activeTA->id)
+                ->where('status', 'approved')
+            );
+        })->with(['mataKuliah', 'dosen.user', 'jadwal'])->get();
+
+        $hariOrder = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Ahad'];
+        $jadwalPerHari = collect();
+        $totalSks = $kelasList->sum(fn ($k) => $k->mataKuliah?->sks ?? 0);
+
+        foreach ($hariOrder as $hari) {
+            $jadwalHariIni = collect();
+            $aliasHari = $hari === 'Ahad' ? ['Ahad', 'Minggu'] : [$hari];
+
+            foreach ($kelasList as $kelas) {
+                foreach ($kelas->jadwal as $jadwal) {
+                    if (in_array($jadwal->hari, $aliasHari)) {
+                        $jadwalHariIni->push([
+                            'kelas' => $kelas,
+                            'jadwal' => $jadwal,
+                        ]);
+                    }
+                }
+            }
+
+            if ($jadwalHariIni->isNotEmpty()) {
+                $jadwalPerHari[$hari] = $jadwalHariIni->sortBy(fn ($j) => $j['jadwal']->jam_mulai)->values();
+            }
+        }
+
+        return view('mahasiswa.export.jadwal', compact('mahasiswa', 'activeTA', 'jadwalPerHari', 'kelasList', 'totalSks'));
     }
 }

@@ -12,6 +12,7 @@ require __DIR__.'/kp.php';
 require __DIR__.'/krs.php';
 require __DIR__.'/lms.php';
 require __DIR__.'/materi.php';
+require __DIR__.'/payment.php';
 require __DIR__.'/presensi.php';
 require __DIR__.'/skripsi.php';
 require __DIR__.'/transkrip.php';

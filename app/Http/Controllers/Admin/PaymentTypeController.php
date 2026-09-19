@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StorePaymentTypeRequest;
+use App\Http\Requests\Admin\UpdatePaymentTypeRequest;
 use App\Models\PaymentType;
 use App\Services\ActivityLogService;
-use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class PaymentTypeController extends Controller
 {
@@ -14,32 +17,64 @@ class PaymentTypeController extends Controller
         protected ActivityLogService $activityLogService
     ) {}
 
-    public function index()
+    public function index(): View
     {
         $this->authorizeSuperAdmin();
 
-        $paymentTypes = PaymentType::orderBy('id')->get();
+        $paymentTypes = PaymentType::withCount('payments')
+            ->orderBy('id')
+            ->get();
 
         return view('admin.payments.types.index', compact('paymentTypes'));
     }
 
-    public function edit(PaymentType $paymentType)
+    public function create(): View
+    {
+        $this->authorizeSuperAdmin();
+
+        return view('admin.payments.types.create');
+    }
+
+    public function store(StorePaymentTypeRequest $request): RedirectResponse
+    {
+        $this->authorizeSuperAdmin();
+
+        $data = $request->validated();
+        $data['code'] = strtoupper(trim($data['code']));
+
+        if ($data['category'] !== 'semester') {
+            $data['semester'] = null;
+        }
+
+        $paymentType = PaymentType::create($data);
+
+        $this->activityLogService->log(
+            action: "Menambahkan jenis pembayaran baru: {$paymentType->name} ({$paymentType->code}).",
+            model: $paymentType,
+            changes: ['new' => $paymentType->toArray()]
+        );
+
+        return redirect()
+            ->route('admin.payment-types.index')
+            ->with('success', "Jenis pembayaran {$paymentType->name} berhasil ditambahkan.");
+    }
+
+    public function edit(PaymentType $paymentType): View
     {
         $this->authorizeSuperAdmin();
 
         return view('admin.payments.types.edit', compact('paymentType'));
     }
 
-    public function update(Request $request, PaymentType $paymentType)
+    public function update(UpdatePaymentTypeRequest $request, PaymentType $paymentType): RedirectResponse
     {
         $this->authorizeSuperAdmin();
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'default_amount' => 'required|numeric|min:0',
-            'is_active' => 'required|boolean',
-            'description' => 'nullable|string|max:1000',
-        ]);
+        $validated = $request->validated();
+
+        if (isset($validated['category']) && $validated['category'] !== 'semester') {
+            $validated['semester'] = null;
+        }
 
         $old = $paymentType->toArray();
         $paymentType->update($validated);
@@ -50,12 +85,38 @@ class PaymentTypeController extends Controller
             changes: ['old' => $old, 'new' => $paymentType->fresh()->toArray()]
         );
 
-        return redirect()->route('admin.payment-types.index')->with('success', "Jenis pembayaran {$paymentType->name} berhasil diperbarui.");
+        return redirect()
+            ->route('admin.payment-types.index')
+            ->with('success', "Jenis pembayaran {$paymentType->name} berhasil diperbarui.");
+    }
+
+    public function destroy(PaymentType $paymentType): RedirectResponse
+    {
+        $this->authorizeSuperAdmin();
+
+        if ($paymentType->payments()->exists()) {
+            return redirect()
+                ->route('admin.payment-types.index')
+                ->with('error', "Jenis pembayaran {$paymentType->name} tidak dapat dihapus karena sudah memiliki data tagihan mahasiswa terkait. Silakan nonaktifkan status jenis pembayaran ini.");
+        }
+
+        $name = $paymentType->name;
+        $code = $paymentType->code;
+        $paymentType->delete();
+
+        $this->activityLogService->log(
+            action: "Menghapus jenis pembayaran: {$name} ({$code}).",
+            model: $paymentType
+        );
+
+        return redirect()
+            ->route('admin.payment-types.index')
+            ->with('success', "Jenis pembayaran {$name} berhasil dihapus.");
     }
 
     protected function authorizeSuperAdmin(): void
     {
-        if (! Auth::user()->isSuperAdmin()) {
+        if (! Auth::user()?->isSuperAdmin()) {
             abort(403, 'Hanya Superadmin yang berwenang mengelola jenis pembayaran.');
         }
     }

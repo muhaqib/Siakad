@@ -22,6 +22,9 @@ Route::middleware(['auth', 'role:admin', 'fakultas.scope'])->prefix('admin')->na
 
     // Payment Types (Superadmin only)
     Route::get('/payment-types', [PaymentTypeController::class, 'index'])->name('payment-types.index');
+    Route::get('/payment-types/create', [PaymentTypeController::class, 'create'])->name('payment-types.create');
+    Route::post('/payment-types', [PaymentTypeController::class, 'store'])->name('payment-types.store');
     Route::get('/payment-types/{paymentType}/edit', [PaymentTypeController::class, 'edit'])->name('payment-types.edit');
     Route::put('/payment-types/{paymentType}', [PaymentTypeController::class, 'update'])->name('payment-types.update');
+    Route::delete('/payment-types/{paymentType}', [PaymentTypeController::class, 'destroy'])->name('payment-types.destroy');
 });

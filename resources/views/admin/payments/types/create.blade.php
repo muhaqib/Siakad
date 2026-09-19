@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
-        <span class="md:hidden">Edit Tarif</span>
-        <span class="hidden md:inline">Edit Jenis & Tarif Pembayaran</span>
+        <span class="md:hidden">Tambah Tarif</span>
+        <span class="hidden md:inline">Tambah Jenis & Tarif Pembayaran</span>
     </x-slot>
 
     <div class="space-y-6">
@@ -13,10 +13,10 @@
                 </a>
                 <div>
                     <h1 class="text-xl font-semibold text-siakad-dark dark:text-white hidden md:block">
-                        Edit Jenis Pembayaran: {{ $paymentType->name }}
+                        Tambah Jenis & Tarif Pembayaran
                     </h1>
                     <p class="text-sm text-siakad-secondary dark:text-gray-400">
-                        Ubah besaran tarif default, kategori, dan status keaktifan biaya perkuliahan
+                        Tambahkan master komponen biaya perkuliahan baru mahasiswa STIT Mambaul Hikmah
                     </p>
                 </div>
             </div>
@@ -41,24 +41,30 @@
             </div>
         @endif
 
-        <div class="max-w-2xl mx-auto" x-data="{ category: '{{ old('category', $paymentType->category) }}' }">
+        <div class="max-w-2xl mx-auto" x-data="{ category: '{{ old('category', 'semester') }}' }">
             <div class="card-saas p-6 dark:bg-gray-800">
-                <form action="{{ route('admin.payment-types.update', $paymentType->id) }}" method="POST" class="space-y-5">
+                <form action="{{ route('admin.payment-types.store') }}" method="POST" class="space-y-5">
                     @csrf
-                    @method('PUT')
 
                     <div>
-                        <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">Kode Jenis</label>
-                        <input type="text" value="{{ $paymentType->code }}" disabled
-                            class="input-saas w-full text-xs py-2.5 px-3 bg-gray-50 dark:bg-gray-900/50 text-siakad-secondary dark:text-gray-400 cursor-not-allowed font-mono">
-                        <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">Kode jenis bersifat permanen untuk menjaga integritas riwayat invoice.</p>
+                        <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">
+                            Kode Biaya <span class="text-rose-500">*</span>
+                        </label>
+                        <input type="text" name="code" value="{{ old('code') }}" required placeholder="Contoh: WISUDA, PRAKTIKUM, DPP, SEM_9"
+                            class="input-saas w-full text-xs py-2.5 px-3 uppercase font-mono @error('code') border-rose-500 @enderror">
+                        <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">
+                            Kode unik singkat (hanya huruf, angka, strip, atau garis bawah). Akan digunakan dalam format nomor invoice tagihan.
+                        </p>
+                        @error('code')
+                            <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div>
                         <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">
                             Nama Jenis Pembayaran <span class="text-rose-500">*</span>
                         </label>
-                        <input type="text" name="name" value="{{ old('name', $paymentType->name) }}" required
+                        <input type="text" name="name" value="{{ old('name') }}" required placeholder="Contoh: Biaya Wisuda & Ijazah, Praktikum Komputer"
                             class="input-saas w-full text-xs py-2.5 px-3 @error('name') border-rose-500 @enderror">
                         @error('name')
                             <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
@@ -71,9 +77,9 @@
                                 Kategori <span class="text-rose-500">*</span>
                             </label>
                             <select name="category" x-model="category" required class="input-saas w-full text-xs py-2.5 px-3 @error('category') border-rose-500 @enderror">
-                                <option value="semester" {{ old('category', $paymentType->category) === 'semester' ? 'selected' : '' }}>Semester (SPP / Perkuliahan Rutin)</option>
-                                <option value="registration" {{ old('category', $paymentType->category) === 'registration' ? 'selected' : '' }}>Pendaftaran (Heregistrasi / Masuk)</option>
-                                <option value="other" {{ old('category', $paymentType->category) === 'other' ? 'selected' : '' }}>Lainnya (Wisuda, Praktikum, Skripsi, dll)</option>
+                                <option value="semester">Semester (SPP / Perkuliahan Rutin)</option>
+                                <option value="registration">Pendaftaran (Heregistrasi / Masuk)</option>
+                                <option value="other">Lainnya (Wisuda, Praktikum, Skripsi, dll)</option>
                             </select>
                             @error('category')
                                 <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
@@ -84,9 +90,9 @@
                             <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">
                                 Semester Ke <span class="text-rose-500" x-show="category === 'semester'">*</span>
                             </label>
-                            <input type="number" name="semester" value="{{ old('semester', $paymentType->semester) }}" min="1" max="14" placeholder="1 - 14"
+                            <input type="number" name="semester" value="{{ old('semester') }}" min="1" max="14" placeholder="1 - 14"
                                 class="input-saas w-full text-xs py-2.5 px-3 @error('semester') border-rose-500 @enderror">
-                            <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">Angka semester perkuliahan.</p>
+                            <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">Masukkan angka semester perkuliahan.</p>
                             @error('semester')
                                 <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
                             @enderror
@@ -99,10 +105,12 @@
                         </label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-gray-500 dark:text-gray-400">Rp</span>
-                            <input type="number" name="default_amount" value="{{ old('default_amount', (int)$paymentType->default_amount) }}" required min="0" step="1000"
+                            <input type="number" name="default_amount" value="{{ old('default_amount', 0) }}" required min="0" step="1000"
                                 class="input-saas w-full text-xs py-2.5 pl-10 pr-3 font-semibold @error('default_amount') border-rose-500 @enderror">
                         </div>
-                        <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">Tarif ini akan menjadi acuan saat pembuatan invoice tagihan mahasiswa.</p>
+                        <p class="text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">
+                            Besaran tarif standar yang akan otomatis menjadi nominal tagihan mahasiswa saat generate kewajiban biaya.
+                        </p>
                         @error('default_amount')
                             <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
                         @enderror
@@ -113,8 +121,8 @@
                             Status Keaktifan <span class="text-rose-500">*</span>
                         </label>
                         <select name="is_active" class="input-saas w-full text-xs py-2.5 px-3 @error('is_active') border-rose-500 @enderror">
-                            <option value="1" {{ old('is_active', $paymentType->is_active ? '1' : '0') == '1' ? 'selected' : '' }}>Aktif (Dapat Diterapkan pada Tagihan)</option>
-                            <option value="0" {{ old('is_active', $paymentType->is_active ? '1' : '0') == '0' ? 'selected' : '' }}>Nonaktif (Ditangguhkan)</option>
+                            <option value="1" {{ old('is_active', '1') === '1' ? 'selected' : '' }}>Aktif (Dapat Diterapkan pada Tagihan)</option>
+                            <option value="0" {{ old('is_active') === '0' ? 'selected' : '' }}>Nonaktif (Ditangguhkan)</option>
                         </select>
                         @error('is_active')
                             <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
@@ -122,8 +130,11 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">Deskripsi / Keterangan</label>
-                        <textarea name="description" rows="3" class="input-saas w-full text-xs py-2 px-3 @error('description') border-rose-500 @enderror">{{ old('description', $paymentType->description) }}</textarea>
+                        <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-200 mb-1.5">
+                            Deskripsi / Keterangan
+                        </label>
+                        <textarea name="description" rows="3" placeholder="Tuliskan catatan atau rincian komponen biaya..."
+                            class="input-saas w-full text-xs py-2 px-3 @error('description') border-rose-500 @enderror">{{ old('description') }}</textarea>
                         @error('description')
                             <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
                         @enderror
@@ -133,8 +144,9 @@
                         <a href="{{ route('admin.payment-types.index') }}" class="btn-ghost-saas px-4 py-2 text-xs font-medium rounded-lg">
                             Batal
                         </a>
-                        <button type="submit" class="btn-primary-saas px-5 py-2 text-xs font-semibold rounded-lg shadow-sm">
-                            Simpan Perubahan
+                        <button type="submit" class="btn-primary-saas px-5 py-2 text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Simpan Biaya
                         </button>
                     </div>
                 </form>

@@ -5,11 +5,21 @@
     </x-slot>
 
     @php
-        $firstUnpaid = $payments->first(fn($p) => !$p->isPaid());
+        $unpaidPayments = $payments->filter(fn($p) => !$p->isPaid())->values();
+        $firstUnpaid = $unpaidPayments->first();
         $pendingPayment = $payments->firstWhere('status', 'pending');
         $activePayment = $pendingPayment ?? $firstUnpaid;
-        $initialAmount = $activePayment ? (int) $activePayment->remaining_amount : 0;
         $initialIsPaying = $pendingPayment ? 'true' : 'false';
+
+        $billsData = $unpaidPayments->map(function ($p, $index) {
+            return [
+                'id' => $p->id,
+                'name' => $p->paymentType->name,
+                'invoice' => $p->invoice_number,
+                'remaining' => (int) $p->remaining_amount,
+                'amount' => $index === 0 ? (int) $p->remaining_amount : 0,
+            ];
+        })->values();
     @endphp
 
     <div
@@ -62,23 +72,28 @@
                 >
                     <div class="flex items-center justify-between gap-2 mb-3">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-siakad-secondary dark:text-gray-400">
-                            BAYAR VIA TRANSFER & MIDTRANS
+                            PEMBAYARAN ONLINE
                         </h3>
-                        <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-800">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Midtrans Online
-                        </span>
                     </div>
 
                     {{-- Info Tagihan Yang Sedang Aktif Dipilih --}}
-                    <template x-if="activePaymentName">
+                    <template x-if="selectedBills.length > 0">
                         <div class="mb-4 p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 text-xs">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-0.5">
-                                Tagihan Dipilih:
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1">
+                                Tagihan Dipilih (<span x-text="selectedBills.length"></span>):
                             </span>
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-siakad-dark dark:text-white" x-text="activePaymentName"></span>
-                                <span class="text-[11px] font-mono text-gray-500 dark:text-gray-400" x-text="activePaymentInvoice"></span>
+                            <div class="space-y-1.5 divide-y divide-blue-100/70 dark:divide-blue-900/40">
+                                <template x-for="bill in selectedBills" :key="bill.id">
+                                    <div class="pt-1.5 first:pt-0 flex items-center justify-between">
+                                        <div>
+                                            <span class="font-bold text-siakad-dark dark:text-white block" x-text="bill.name"></span>
+                                            <span class="text-[10px] font-mono text-gray-500 dark:text-gray-400" x-text="bill.invoice"></span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="font-bold font-mono text-siakad-dark dark:text-white block" x-text="'Rp ' + formatRupiah(bill.amount)"></span>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </template>
@@ -88,10 +103,6 @@
                             <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                 TOTAL PEMBAYARAN
                             </label>
-                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded"
-                                  :class="totalPayAmount < activePaymentRemaining ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'"
-                                  x-text="totalPayAmount < activePaymentRemaining ? 'Cicilan' : 'Pelunasan Penuh'">
-                            </span>
                         </div>
 
                         <!-- Box Display Total Pembayaran -->
@@ -100,71 +111,23 @@
                                 Rp.
                             </span>
                             <span class="text-2xl font-black text-siakad-dark dark:text-white font-mono tracking-tight">
-                                <span x-text="formatRupiah(totalPayAmount)"></span>
+                                <span x-text="formatRupiah(grandTotal)"></span>
                             </span>
                         </div>
 
-                        <!-- Input Nominal Yang Dibayar (Bisa Cicil) -->
-                        <div class="mt-3.5">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[11px] font-bold text-siakad-dark dark:text-gray-200">
-                                    Nominal Yang Dibayar:
-                                </span>
-                                <span class="text-[10px] text-siakad-secondary dark:text-gray-400">
-                                    Sisa Tagihan: Rp <strong x-text="formatRupiah(activePaymentRemaining)"></strong>
-                                </span>
-                            </div>
-                            <div class="inline-flex items-center w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
-                                <span class="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">Rp</span>
-                                <input
-                                    type="number"
-                                    x-model.number="totalPayAmount"
-                                    @input="validateNominal()"
-                                    :disabled="isPaying"
-                                    min="10000"
-                                    :max="activePaymentRemaining"
-                                    placeholder="Masukkan nominal cicilan"
-                                    class="w-full px-3 py-2 text-sm font-bold text-siakad-dark dark:text-white border-0 focus:ring-0 focus:outline-none bg-transparent"
-                                />
-                                <button
-                                    type="button"
-                                    @click="setPenuh(activePaymentRemaining)"
-                                    :disabled="isPaying"
-                                    class="px-3 py-2 text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-700 transition cursor-pointer"
-                                >
-                                    LUNAS
-                                </button>
-                            </div>
-                            <template x-if="totalPayAmount > 0 && totalPayAmount < activePaymentRemaining">
-                                <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center justify-between font-medium">
-                                    <span>✓ Mode Pembayaran Cicilan</span>
-                                    <span>Sisa tagihan nanti: Rp <span x-text="formatRupiah(activePaymentRemaining - totalPayAmount)"></span></span>
-                                </p>
-                            </template>
+                        <!-- Tuliskan kecil dibawah Total pembayaran: Biaya Admin Rp 4.000 -->
+                        <div class="flex items-center justify-between px-1 mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                            <span>Termasuk biaya admin</span>
+                            <span class="font-semibold font-mono">Rp 4.000</span>
                         </div>
-                    </div>
 
-                    {{-- Saluran Pembayaran Yang Tersedia --}}
-                    <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/80">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
-                            Metode Transfer & Pembayaran:
-                        </p>
-                        <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
-                            <span class="px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">BSI</span>
-                            <span class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">BCA</span>
-                            <span class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">Mandiri</span>
-                            <span class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">BRI</span>
-                            <span class="px-2 py-1 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/60">BNI</span>
-                            <span class="px-2 py-1 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">QRIS</span>
-                            <span class="px-2 py-1 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60">GoPay / E-Wallet</span>
-                        </div>
                     </div>
 
                     <!-- Tombol Eksekusi Bayar Transfer melalui Midtrans -->
                     <button
                         type="button"
                         @click="proceedToPay()"
-                        :disabled="isLoading || totalPayAmount <= 0"
+                        :disabled="isLoading || grandTotal <= 0"
                         class="w-full mt-5 py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-siakad-dark hover:bg-siakad-primary transition duration-150 shadow-sm hover:shadow flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         <template x-if="isLoading">
@@ -178,7 +141,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                             </svg>
                         </template>
-                        <span x-text="isLoading ? 'Menyiapkan Midtrans...' : (totalPayAmount < activePaymentRemaining ? 'Bayar Cicilan via Midtrans' : 'Bayar Transfer melalui Midtrans')"></span>
+                        <span x-text="isLoading ? 'Menyiapkan ...' : 'Bayar Sekarang'"></span>
                     </button>
                 </div>
 
@@ -219,7 +182,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
-                        Buka Layar Pembayaran Transfer Midtrans (Snap Popup)
+                        Lihat Status Pembayaran
                     </button>
 
                     <!-- Card Total Pembayaran & Subtitle -->
@@ -233,140 +196,25 @@
                                     TOTAL PEMBAYARAN
                                 </p>
                                 <h3 class="text-2xl font-black text-siakad-dark dark:text-white font-mono mt-0.5">
-                                    Rp <span x-text="formatRupiah(totalPayAmount)"></span>
+                                    Rp <span x-text="formatRupiah(grandTotal)"></span>
                                 </h3>
+                                <span class="text-[10px] text-gray-400 block mt-0.5">
+                                    Termasuk biaya admin Rp 4.000
+                                </span>
                             </div>
                         </div>
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 pt-2 border-t border-gray-200/70 dark:border-gray-700">
-                            <span x-text="activePaymentName"></span> (Rp <span x-text="formatRupiah(totalPayAmount)"></span>)
-                        </p>
-                    </div>
-
-                    <!-- Cara Pembayaran Section -->
-                    <div class="space-y-3 pt-1">
-                        <h4 class="text-xs font-bold text-siakad-dark dark:text-white uppercase tracking-wider">
-                            CARA PEMBAYARAN
-                        </h4>
-
-                        <!-- Tabs Navigasi Saluran Bayar -->
-                        <div class="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-gray-900/70 rounded-xl">
-                            <button
-                                type="button"
-                                @click="paymentTab = 'bsi_mobile'"
-                                :class="paymentTab === 'bsi_mobile' ? 'bg-siakad-dark text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-siakad-dark'"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                            >
-                                BSI Mobile
-                            </button>
-                            <button
-                                type="button"
-                                @click="paymentTab = 'atm_bsi'"
-                                :class="paymentTab === 'atm_bsi' ? 'bg-siakad-dark text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-siakad-dark'"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                            >
-                                ATM BSI
-                            </button>
-                            <button
-                                type="button"
-                                @click="paymentTab = 'qris'"
-                                :class="paymentTab === 'qris' ? 'bg-siakad-dark text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-siakad-dark'"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                            >
-                                QRIS / E-Wallet
-                            </button>
-                            <button
-                                type="button"
-                                @click="paymentTab = 'bank_lain'"
-                                :class="paymentTab === 'bank_lain' ? 'bg-siakad-dark text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-siakad-dark'"
-                                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                            >
-                                Bank Lain
-                            </button>
-                        </div>
-
-                        <!-- Instruksi Tab 1: BSI Mobile -->
-                        <div x-show="paymentTab === 'bsi_mobile'" class="text-xs text-siakad-secondary dark:text-gray-300 space-y-2">
-                            <p>1. Buka aplikasi <strong>BSI Mobile / BYOND</strong>, masuk ke menu <strong>Pembayaran</strong></p>
-                            <p>2. Pilih <strong>Akademik</strong></p>
-                            <p>3. Cari dan pilih <strong>STIT MAMBAUL HIKMAH</strong></p>
-                            <div>
-                                <p>4. Masukkan Nomor Pembayaran:</p>
-                                <div class="mt-1.5 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between font-mono text-lg font-bold text-siakad-dark dark:text-white">
-                                    <span x-text="vaNumber"></span>
-                                    <button
-                                        type="button"
-                                        @click="copyToClipboard(vaNumber)"
-                                        class="p-1.5 px-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-siakad-primary transition text-xs flex items-center gap-1.5 font-sans font-medium"
-                                    >
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                                        <span x-text="copied ? 'Tersalin!' : 'Salin'"></span>
-                                    </button>
+                        <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-2.5 pt-2 border-t border-gray-200/70 dark:border-gray-700 space-y-1">
+                            <template x-for="bill in selectedBills" :key="bill.id">
+                                <div class="flex items-center justify-between">
+                                    <span x-text="bill.name"></span>
+                                    <span class="font-mono" x-text="'Rp ' + formatRupiah(bill.amount)"></span>
                                 </div>
-                                <p class="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
-                                    Cukup NIM saja (tanpa titik) — karena institusi STIT Mambaul Hikmah sudah dipilih.
-                                </p>
+                            </template>
+                            <div class="flex items-center justify-between text-gray-400 pt-1 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                <span>Biaya Admin</span>
+                                <span class="font-mono">Rp 4.000</span>
                             </div>
-                            <p>5. Periksa nama & nominal tagihan, lalu konfirmasi pembayaran.</p>
                         </div>
-
-                        <!-- Instruksi Tab 2: ATM BSI -->
-                        <div x-show="paymentTab === 'atm_bsi'" x-cloak class="text-xs text-siakad-secondary dark:text-gray-300 space-y-2">
-                            <p>1. Masukkan kartu ATM BSI dan PIN Anda.</p>
-                            <p>2. Pilih menu <strong>Pembayaran / Pembelian &gt; Akademik</strong>.</p>
-                            <p>3. Masukkan kode institusi STIT Mambaul Hikmah dan Nomor Pembayaran:</p>
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 flex items-center justify-between font-mono text-lg font-bold text-siakad-dark dark:text-white">
-                                <span x-text="vaNumber"></span>
-                                <button type="button" @click="copyToClipboard(vaNumber)" class="text-xs font-sans font-medium text-siakad-primary dark:text-blue-400">Salin</button>
-                            </div>
-                            <p>4. Periksa detail tagihan pada layar ATM lalu tekan YA untuk membayar.</p>
-                        </div>
-
-                        <!-- Instruksi Tab 3: QRIS / E-Wallet -->
-                        <div x-show="paymentTab === 'qris'" x-cloak class="text-xs text-siakad-secondary dark:text-gray-300 space-y-2.5">
-                            <p>Bayar instan menggunakan QRIS dengan scan langsung lewat aplikasi e-wallet favorit Anda (GoPay, ShopeePay, DANA, OVO, LinkAja) atau m-Banking.</p>
-                            <button
-                                type="button"
-                                @click="openSnapPopup()"
-                                class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition"
-                            >
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                                Buka QR Code QRIS (Midtrans)
-                            </button>
-                        </div>
-
-                        <!-- Instruksi Tab 4: Bank Lain / Virtual Account -->
-                        <div x-show="paymentTab === 'bank_lain'" x-cloak class="text-xs text-siakad-secondary dark:text-gray-300 space-y-2">
-                            <p>1. Buka m-Banking atau ATM bank Anda (BCA, Mandiri, BNI, BRI, Permata, dll).</p>
-                            <p>2. Pilih menu <strong>Transfer Antar Bank / Virtual Account</strong>.</p>
-                            <p>3. Klik tombol di bawah untuk menampilkan nomor Virtual Account resmi dari Midtrans:</p>
-                            <button
-                                type="button"
-                                @click="openSnapPopup()"
-                                class="w-full py-2.5 px-3 rounded-xl bg-siakad-primary hover:bg-siakad-dark text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition"
-                            >
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                                Tampilkan Virtual Account Midtrans
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Tombol Cepat Buka Layar Midtrans Snap (QRIS, VA Bank, GoPay) -->
-                    <div class="pt-2">
-                        <button
-                            type="button"
-                            @click="openSnapPopup()"
-                            class="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-siakad-primary hover:bg-siakad-dark transition shadow-sm flex items-center justify-center gap-2"
-                        >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                            </svg>
-                            Buka Layar Pembayaran (Midtrans Snap)
-                        </button>
-                    </div>
-
-                    <!-- Green Notice: Pembayaran Tercatat Otomatis -->
-                    <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs leading-relaxed">
-                        Pembayaran tercatat <strong>otomatis</strong> dalam hitungan detik. Halaman ini akan memperbarui diri sendiri — tidak perlu mengirim bukti transfer.
                     </div>
 
                     <!-- Tombol Batalkan -->
@@ -479,23 +327,23 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <p class="leading-relaxed">
-                            Tagihan dibayar berurutan. Kolom nominal tagihan berikutnya terbuka setelah tagihan sebelumnya <strong>LUNAS</strong> — atau saat Anda mengisinya penuh di halaman ini.
+                            Tagihan dibayar berurutan. Kolom nominal tagihan berikutnya terbuka setelah tagihan sebelumnya <strong>LUNAS</strong> — atau saat Anda mengisinya nominal penuh di halaman ini.
                         </p>
                     </div>
 
                     <!-- Daftar List Tagihan Mahasiswa (Stack) -->
                     <div class="space-y-2.5 mt-4">
                         @php
-                            $hasUnlockedUnpaid = false;
+                            $unpaidCounter = 0;
                         @endphp
 
                         @foreach($payments as $p)
                             @php
                                 $isPaid = $p->isPaid();
-                                $isActive = false;
-                                if (! $isPaid && ! $hasUnlockedUnpaid) {
-                                    $isActive = true;
-                                    $hasUnlockedUnpaid = true;
+                                $unpaidIndex = null;
+                                if (! $isPaid) {
+                                    $unpaidIndex = $unpaidCounter;
+                                    $unpaidCounter++;
                                 }
                             @endphp
 
@@ -524,9 +372,12 @@
                                     </div>
                                 </div>
 
-                            @elseif($isActive)
-                                <!-- Baris Tagihan: AKTIF (Siap Dibayar via Transfer / Midtrans) -->
-                                <div class="p-4 rounded-xl border-2 border-emerald-400 dark:border-emerald-600 bg-emerald-50/20 dark:bg-emerald-950/10 flex flex-col gap-3 shadow-sm transition">
+                            @else
+                                <!-- Baris Tagihan: AKTIF / TERBUKA jika isUnlocked -->
+                                <div
+                                    x-show="isUnlocked({{ $unpaidIndex }})"
+                                    class="p-4 rounded-xl border-2 border-emerald-400 dark:border-emerald-600 bg-emerald-50/20 dark:bg-emerald-950/10 flex flex-col gap-3 shadow-sm transition"
+                                >
                                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div class="flex items-start gap-3">
                                             <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -546,14 +397,9 @@
                                                 </span>
                                             </div>
                                         </div>
-
-                                        <!-- Rincian Link -->
-                                        <a href="{{ route('mahasiswa.payments.show', $p->id) }}" class="text-[11px] text-siakad-primary dark:text-blue-400 hover:underline font-semibold flex items-center gap-1 self-start sm:self-auto">
-                                            Lihat Rincian &rarr;
-                                        </a>
                                     </div>
 
-                                    <!-- Bagian Input Nominal & Tombol Eksekusi Bayar Transfer Midtrans -->
+                                    <!-- Bagian Input Nominal & Tombol PENUH -->
                                     <div class="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                         <div>
                                             <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
@@ -565,52 +411,58 @@
                                                 </span>
                                                 <input
                                                     type="number"
-                                                    x-model.number="totalPayAmount"
-                                                    @input="validateNominal()"
+                                                    x-model.number="bills[{{ $unpaidIndex }}].amount"
+                                                    @input="onAmountInput({{ $unpaidIndex }})"
                                                     :disabled="isPaying"
-                                                    min="10000"
+                                                    min="0"
                                                     max="{{ (int) $p->remaining_amount }}"
+                                                    placeholder="0"
                                                     class="w-28 sm:w-32 px-2.5 py-1.5 text-xs font-bold text-siakad-dark dark:text-white text-right border-0 focus:ring-0 focus:outline-none bg-transparent"
                                                 />
                                                 <button
                                                     type="button"
-                                                    @click="setPenuh({{ (int) $p->remaining_amount }})"
+                                                    @click="setBillFull({{ $unpaidIndex }})"
                                                     :disabled="isPaying"
                                                     class="px-2.5 py-1.5 text-[10px] font-bold uppercase bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-700 transition cursor-pointer"
                                                 >
                                                     PENUH
                                                 </button>
                                             </div>
-                                        </div>
 
-                                        <!-- Tombol Langsung Bayar Transfer Melalui Midtrans -->
-                                        <button
-                                            type="button"
-                                            @click="selectAndPay({{ $p->id }}, {{ (int) $p->remaining_amount }}, '{{ addslashes($p->paymentType->name) }}', '{{ $p->invoice_number }}')"
-                                            :disabled="isLoading || isPaying || totalPayAmount <= 0"
-                                            class="py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-siakad-primary hover:bg-siakad-dark transition shadow-sm hover:shadow flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer self-end sm:self-auto"
-                                        >
-                                            <svg class="w-3.5 h-3.5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                                            </svg>
-                                            <span x-text="totalPayAmount < activePaymentRemaining ? 'Bayar Cicilan (Rp ' + formatRupiah(totalPayAmount) + ')' : 'Bayar Sekarang (Lunas)'"></span>
-                                        </button>
+                                            <template x-if="bills[{{ $unpaidIndex }}]?.amount === bills[{{ $unpaidIndex }}]?.remaining">
+                                                <p class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1.5 font-medium">
+                                                    ✓ Nominal penuh. Tagihan berikutnya terbuka jika ingin dibayar bersamaan.
+                                                </p>
+                                            </template>
+                                            <template x-if="bills[{{ $unpaidIndex }}]?.amount > 0 && bills[{{ $unpaidIndex }}]?.amount < bills[{{ $unpaidIndex }}]?.remaining">
+                                                <p class="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">
+                                                    Sisa tagihan nanti: Rp <span x-text="formatRupiah(bills[{{ $unpaidIndex }}].remaining - bills[{{ $unpaidIndex }}].amount)"></span> (Tagihan berikutnya tetap terkunci).
+                                                </p>
+                                            </template>
+                                            <template x-if="bills[{{ $unpaidIndex }}]?.amount === 0 && {{ $unpaidIndex }} > 0">
+                                                <p class="text-[11px] text-blue-600 dark:text-blue-400 mt-1.5 font-medium">
+                                                    Tagihan ini terbuka. Isi nominal jika ingin membayar tagihan ini sekarang.
+                                                </p>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
 
-                            @else
                                 <!-- Baris Tagihan: BELUM GILIRANNYA (Terkunci) -->
-                                <div class="p-3.5 rounded-xl border border-gray-200/70 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-900/30 flex items-center justify-between opacity-70">
+                                <div
+                                    x-show="!isUnlocked({{ $unpaidIndex }})"
+                                    class="p-3.5 rounded-xl border border-gray-200/70 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-900/30 flex items-center justify-between opacity-70 transition"
+                                >
                                     <div class="flex items-center gap-3">
                                         <div class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                            &ndash;
+                                            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                                         </div>
                                         <div>
                                             <h4 class="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                                                 {{ $p->paymentType->name }}
                                             </h4>
                                             <span class="text-[10px] text-gray-400 uppercase">
-                                                BELUM BAYAR
+                                                TERKUNCI &bull; Selesaikan tagihan sebelumnya
                                             </span>
                                         </div>
                                     </div>
@@ -628,17 +480,22 @@
                     <!-- Footer Summary: SISA TOTAL & AKAN DIBAYAR -->
                     <div class="pt-5 mt-6 border-t border-gray-100 dark:border-gray-700 space-y-2">
                         <div class="flex items-center justify-between text-xs text-siakad-secondary dark:text-gray-400">
-                            <span class="font-semibold uppercase tracking-wider">SISA TOTAL</span>
+                            <span class="font-semibold uppercase tracking-wider">SISA TOTAL TAGIHAN</span>
                             <span class="font-bold text-sm text-siakad-dark dark:text-white font-mono">
                                 Rp {{ number_format($totalTunggakan, 0, ',', '.') }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between pt-1">
-                            <span class="text-xs font-bold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">
-                                AKAN DIBAYAR
-                            </span>
+                            <div>
+                                <span class="text-xs font-bold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider block">
+                                    TOTAL PEMBAYARAN
+                                </span>
+                                <span class="text-[10px] text-gray-400 block">
+                                    Termasuk biaya admin Rp 4.000
+                                </span>
+                            </div>
                             <span class="text-2xl font-black text-siakad-dark dark:text-white font-mono">
-                                Rp <span x-text="formatRupiah(totalPayAmount)"></span>
+                                Rp <span x-text="formatRupiah(grandTotal)"></span>
                             </span>
                         </div>
                     </div>
@@ -662,13 +519,11 @@ function paymentApp() {
         isLoading: false,
         copied: false,
         paymentTab: 'bsi_mobile',
-        selectedPaymentId: {{ $activePayment ? $activePayment->id : 'null' }},
-        activePaymentName: '{{ $activePayment ? addslashes($activePayment->paymentType->name) : "" }}',
-        activePaymentInvoice: '{{ $activePayment ? $activePayment->invoice_number : "" }}',
-        activePaymentRemaining: {{ $activePayment ? (int) $activePayment->remaining_amount : 0 }},
-        totalPayAmount: {{ $initialAmount }},
+        bills: @json($billsData),
+        adminFee: 4000,
         vaNumber: '{{ $activePayment && $activePayment->midtrans_order_id ? $activePayment->midtrans_order_id : $mahasiswa->nim }}',
         snapToken: '{{ $activePayment ? $activePayment->midtrans_token : "" }}',
+        redirectUrl: '',
 
         init() {
             if (this.isPaying && this.snapToken) {
@@ -680,30 +535,57 @@ function paymentApp() {
             return new Intl.NumberFormat('id-ID').format(Math.max(0, num || 0));
         },
 
-        validateNominal() {
-            if (this.totalPayAmount > this.activePaymentRemaining) {
-                this.totalPayAmount = this.activePaymentRemaining;
+        isUnlocked(index) {
+            if (index === 0) return true;
+            for (let i = 0; i < index; i++) {
+                if (!this.bills[i] || this.bills[i].amount < this.bills[i].remaining) {
+                    return false;
+                }
             }
-            if (this.totalPayAmount < 0) {
-                this.totalPayAmount = 0;
+            return true;
+        },
+
+        onAmountInput(index) {
+            const bill = this.bills[index];
+            if (!bill) return;
+
+            if (bill.amount > bill.remaining) {
+                bill.amount = bill.remaining;
+            }
+            if (bill.amount < 0 || isNaN(bill.amount)) {
+                bill.amount = 0;
+            }
+
+            // Jika tagihan ini belum nominal penuh, reset dan kunci tagihan berikutnya
+            if (bill.amount < bill.remaining) {
+                for (let i = index + 1; i < this.bills.length; i++) {
+                    this.bills[i].amount = 0;
+                }
             }
         },
 
-        setPenuh(remaining) {
-            this.totalPayAmount = remaining;
+        setBillFull(index) {
+            const bill = this.bills[index];
+            if (!bill) return;
+            bill.amount = bill.remaining;
         },
 
-        selectAndPay(paymentId, remaining, name, invoice) {
-            this.selectedPaymentId = paymentId;
-            this.activePaymentRemaining = remaining;
-            this.activePaymentName = name;
-            this.activePaymentInvoice = invoice;
-            if (!this.totalPayAmount || this.totalPayAmount <= 0) {
-                this.totalPayAmount = remaining;
-            } else if (this.totalPayAmount > remaining) {
-                this.totalPayAmount = remaining;
-            }
-            this.proceedToPay();
+        get selectedBills() {
+            return this.bills.filter(b => b.amount > 0);
+        },
+
+        get subtotal() {
+            return this.selectedBills.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+        },
+
+        get grandTotal() {
+            return this.subtotal > 0 ? this.subtotal + this.adminFee : 0;
+        },
+
+        isAllFull() {
+            const selected = this.selectedBills;
+            if (!selected.length) return false;
+            return selected.every(b => b.amount >= b.remaining);
         },
 
         copyToClipboard(text) {
@@ -750,30 +632,29 @@ function paymentApp() {
         },
 
         async proceedToPay() {
-            if (!this.selectedPaymentId) {
-                alert('Silakan pilih tagihan yang ingin dibayar.');
+            const selected = this.selectedBills;
+            if (!selected.length) {
+                alert('Silakan isi nominal tagihan yang ingin dibayar.');
                 return;
             }
 
-            if (!this.totalPayAmount || this.totalPayAmount < 10000) {
-                alert('Nominal pembayaran minimal adalah Rp 10.000.');
-                return;
-            }
-
-            if (this.totalPayAmount > this.activePaymentRemaining) {
-                this.totalPayAmount = this.activePaymentRemaining;
+            for (const b of selected) {
+                if (b.amount < 10000) {
+                    alert(`Nominal pembayaran untuk "${b.name}" minimal adalah Rp 10.000.`);
+                    return;
+                }
             }
 
             this.isLoading = true;
             try {
-                // Pastikan snap.js siap di-load
                 try {
                     await this.ensureSnapLoaded();
                 } catch (snapErr) {
                     console.warn('Peringatan modul Snap:', snapErr.message);
                 }
 
-                const response = await fetch(`/mahasiswa/payments/${this.selectedPaymentId}/midtrans/token`, {
+                const primaryPaymentId = selected[0].id;
+                const response = await fetch(`/mahasiswa/payments/${primaryPaymentId}/midtrans/token`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -781,7 +662,12 @@ function paymentApp() {
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({
-                        amount: this.totalPayAmount
+                        amount: this.subtotal,
+                        bills: selected.map(b => ({
+                            id: b.id,
+                            amount: b.amount
+                        })),
+                        admin_fee: this.adminFee
                     })
                 });
 
@@ -802,20 +688,19 @@ function paymentApp() {
                 if (typeof snap !== 'undefined' && this.snapToken) {
                     snap.pay(this.snapToken, {
                         onSuccess: (result) => {
-                            window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                            window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                         },
                         onPending: (result) => {
-                            window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                            window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                         },
                         onError: (result) => {
-                            window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                            window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                         },
                         onClose: () => {
                             console.info('Snap popup ditutup. Mahasiswa tetap berada di layar petunjuk kode bayar.');
                         }
                     });
                 } else if (data.redirect_url) {
-                    // Fallback redirect sesuai standar dokumentasi Midtrans jika Snap popup diblokir browser
                     window.location.href = data.redirect_url;
                 }
             } catch (error) {
@@ -825,7 +710,10 @@ function paymentApp() {
         },
 
         async openSnapPopup() {
-            if (!this.snapToken && this.selectedPaymentId) {
+            const selected = this.selectedBills;
+            const primaryPaymentId = selected.length > 0 ? selected[0].id : {{ $activePayment ? $activePayment->id : 'null' }};
+
+            if (!this.snapToken && primaryPaymentId) {
                 this.proceedToPay();
                 return;
             }
@@ -839,13 +727,13 @@ function paymentApp() {
             if (typeof snap !== 'undefined' && this.snapToken) {
                 snap.pay(this.snapToken, {
                     onSuccess: (result) => {
-                        window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                        window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                     },
                     onPending: (result) => {
-                        window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                        window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                     },
                     onError: (result) => {
-                        window.location.href = `/mahasiswa/payments/${this.selectedPaymentId}/midtrans/finish`;
+                        window.location.href = `/mahasiswa/payments/${primaryPaymentId}/midtrans/finish`;
                     },
                     onClose: () => {
                         console.info('Snap popup ditutup.');

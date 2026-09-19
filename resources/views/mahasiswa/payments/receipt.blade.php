@@ -154,8 +154,8 @@
             <td class="header-text">
                 <div class="header-title-main">KWITANSI PEMBAYARAN MAHASISWA</div>
                 <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div>
-                <div class="header-title-inst">{{ $institutionName ?? 'Sekolah Tinggi Ilmu Tarbiyah Mambaul Hikmah' }}</div>
-                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya Tegalwangi' }} | WhatsApp : {{ $institutionPhone ?? '0813 9375 0612' }} | Email : {{ $institutionEmail ?? 'admin@stitmambaulhikmah.ac.id' }}</div>
+                <div class="header-title-inst">{{ $institutionName ?? 'Sekolah Tinggi Ilmu Tarbiyah (STIT) Mambaul Hikmah' }}</div>
+                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Tegalwangi, Kecamatan Talang, Kabupaten Tegal, Jawa Tengah 52193' }} | Website : www.stitmambaulhikmah.ac.id</div>
             </td>
         </tr>
     </table>

@@ -47,7 +47,72 @@ class MidtransController extends Controller
 
         $remaining = (float) $payment->remaining_amount;
 
-        // Validasi nominal pembayaran jika diinput untuk cicilan
+        // Cek jika request memuat daftar multi-tagihan (bills)
+        if ($request->has('bills') && is_array($request->input('bills')) && count($request->input('bills')) > 0) {
+            $unpaidPayments = StudentPayment::where('mahasiswa_id', $mahasiswa->id)
+                ->join('payment_types', 'student_payments.payment_type_id', '=', 'payment_types.id')
+                ->orderBy('payment_types.id', 'asc')
+                ->select('student_payments.*')
+                ->get()
+                ->filter(fn ($p) => ! $p->isPaid())
+                ->values();
+
+            $rawBills = $request->input('bills');
+            $items = [];
+
+            foreach ($rawBills as $index => $billData) {
+                $billId = $billData['id'] ?? null;
+                $billAmount = (float) ($billData['amount'] ?? 0);
+
+                if (! isset($unpaidPayments[$index]) || $unpaidPayments[$index]->id != $billId) {
+                    return response()->json([
+                        'message' => 'Urutan pembayaran tidak valid. Tagihan harus dibayar secara berurutan.',
+                    ], 422);
+                }
+
+                $targetPayment = $unpaidPayments[$index];
+                $targetRemaining = (float) $targetPayment->remaining_amount;
+
+                if ($billAmount < 10000 || $billAmount > $targetRemaining) {
+                    return response()->json([
+                        'message' => "Nominal untuk tagihan {$targetPayment->paymentType->name} harus antara Rp 10.000 s/d Rp ".number_format($targetRemaining, 0, ',', '.').'.',
+                    ], 422);
+                }
+
+                // Jika ada tagihan berikutnya dalam antrean, tagihan ini WAJIB lunas penuh
+                if ($index < count($rawBills) - 1 && $billAmount < $targetRemaining) {
+                    return response()->json([
+                        'message' => "Tagihan {$targetPayment->paymentType->name} harus dibayar penuh sebelum membayar tagihan berikutnya.",
+                    ], 422);
+                }
+
+                $items[] = [
+                    'payment' => $targetPayment,
+                    'amount' => $billAmount,
+                ];
+            }
+
+            try {
+                $transaction = $this->midtransService->createBatchTransaction($items, MidtransService::ADMIN_FEE);
+
+                return response()->json([
+                    'snap_token' => $transaction['token'],
+                    'redirect_url' => $transaction['redirect_url'],
+                    'client_key' => config('midtrans.client_key'),
+                    'payment_id' => $payment->id,
+                    'amount' => (int) $transaction['gross_amount'],
+                    'gross_amount' => (int) $transaction['gross_amount'],
+                    'subtotal' => (int) $transaction['subtotal'],
+                    'admin_fee' => (int) $transaction['admin_fee'],
+                    'invoice' => $payment->invoice_number,
+                    'is_installment' => $transaction['is_installment'],
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['message' => $e->getMessage()], 500);
+            }
+        }
+
+        // Fallback untuk single payment
         $validated = $request->validate([
             'amount' => ['nullable', 'numeric', 'min:10000', 'max:'.$remaining],
         ], [
@@ -61,14 +126,17 @@ class MidtransController extends Controller
             : $remaining;
 
         try {
-            $transaction = $this->midtransService->createTransaction($payment, $payAmount);
+            $transaction = $this->midtransService->createTransaction($payment, $payAmount, MidtransService::ADMIN_FEE);
 
             return response()->json([
                 'snap_token' => $transaction['token'],
                 'redirect_url' => $transaction['redirect_url'],
                 'client_key' => config('midtrans.client_key'),
                 'payment_id' => $payment->id,
-                'amount' => (int) $payAmount,
+                'amount' => (int) $transaction['gross_amount'],
+                'gross_amount' => (int) $transaction['gross_amount'],
+                'subtotal' => (int) $transaction['subtotal'],
+                'admin_fee' => (int) $transaction['admin_fee'],
                 'invoice' => $payment->invoice_number,
                 'is_installment' => $transaction['is_installment'],
             ]);

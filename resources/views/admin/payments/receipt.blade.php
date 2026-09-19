@@ -155,7 +155,7 @@
                 <div class="header-title-main">KWITANSI PEMBAYARAN MAHASISWA</div>
                 <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div>
                 <div class="header-title-inst">{{ $institutionName ?? 'Pascasarjana Universitas Islam Internasional Darullughah Wadda\'wah' }}</div>
-                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya KH Muhammad Barmawi' }} | WhatsApp : {{ $institutionPhone ?? '0852-3519-7238' }} | Email : {{ $institutionEmail ?? 'admin@uiidalwa.ac.id' }}</div>
+                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya KH Muhammad Barmawi' }} | WhatsApp : {{ $institutionPhone ?? '0852-3519-7238' }} | Website : www.stitmambaulhikmah.ac.id</div>
             </td>
         </tr>
     </table>

@@ -55,76 +55,43 @@
 
                 <!-- Action Controls: KRS Lock/Unlock Button & Back Link -->
                 <div class="flex flex-wrap items-center gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-100 dark:border-gray-700">
+                    @php
+                        $isKrsOpen = (bool) ($mahasiswa->is_krs_unlocked || ($krsAccess['allowed'] ?? false));
+                        $isPaidOpen = ($krsAccess['allowed'] ?? false) && empty($krsAccess['reason']);
+                    @endphp
+
                     <!-- Form Toggle Kunci KRS -->
-                    <form action="{{ route('admin.payments.student.toggle-krs', $mahasiswa->id) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin {{ $mahasiswa->is_krs_unlocked ? 'mengunci kembali' : 'membuka izin (dispensasi)' }} KRS mahasiswa ini?');">
+                    <form action="{{ route('admin.payments.student.toggle-krs', $mahasiswa->id) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin {{ $isKrsOpen ? 'mengunci kembali' : 'membuka izin (dispensasi)' }} KRS mahasiswa ini?');">
                         @csrf
-                        @if($mahasiswa->is_krs_unlocked)
+                        @if($isKrsOpen)
                             <button
                                 type="submit"
-                                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm transition hover:shadow cursor-pointer"
-                                title="Akses KRS Terbuka karena Dispensasi. Klik untuk Kunci Kembali."
+                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs transition cursor-pointer"
+                                title="Akses KRS Terbuka. Klik untuk mengunci kembali."
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
                                 </svg>
-                                <span>KRS Terbuka (Dispensasi Aktif)</span>
-                                <span class="text-[10px] bg-emerald-700/60 px-1.5 py-0.5 rounded font-mono">Buka</span>
+                                <span>KRS Terbuka</span>
+                                <span class="text-[10px] bg-emerald-700/60 px-1.5 py-0.5 rounded font-mono">{{ $isPaidOpen ? 'Lunas' : 'Dispensasi' }}</span>
                             </button>
                         @else
                             <button
                                 type="submit"
-                                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition hover:shadow cursor-pointer"
-                                title="Akses KRS Terkunci sesuai aturan pembayaran. Klik untuk Buka Dispensasi."
+                                class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition cursor-pointer"
+                                title="Akses KRS Terkunci. Klik untuk membuka izin KRS."
                             >
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                                 </svg>
                                 <span>Buka KRS</span>
-                                <span class="text-[10px] bg-amber-700/60 px-1.5 py-0.5 rounded font-mono">Kunci</span>
+                                <span class="text-[10px] bg-amber-700/60 px-1.5 py-0.5 rounded font-mono">Terkunci</span>
                             </button>
                         @endif
                     </form>
                 </div>
             </div>
         </div>
-
-        <!-- Status Banner KRS & Pembayaran -->
-        @if($mahasiswa->is_krs_unlocked)
-            <div class="rounded-xl p-3.5 bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 text-xs flex items-start gap-3 shadow-xs">
-                <div class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 flex-shrink-0 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
-                </div>
-                <div>
-                    <span class="font-bold text-emerald-950 dark:text-emerald-100">Dispensasi KRS Aktif:</span>
-                    <span class="ml-1 text-emerald-800 dark:text-emerald-300">
-                        Admin telah membuka akses KRS untuk mahasiswa ini secara manual. Mahasiswa dapat mengisi dan mengajukan KRS Semester {{ $activeSemester }} meskipun tagihan belum lunas.
-                    </span>
-                </div>
-            </div>
-        @elseif(!$krsAccess['allowed'])
-            <div class="rounded-xl p-3.5 bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs">
-                <div class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex-shrink-0 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                </div>
-                <div>
-                    <span class="font-bold text-amber-950 dark:text-amber-100">Portal KRS Semester {{ $activeSemester }} Terkunci:</span>
-                    <span class="ml-1 text-amber-800 dark:text-amber-300">{{ $krsAccess['reason'] ?? "Mahasiswa belum menyelesaikan kewajiban pembayaran untuk membuka KRS." }}</span>
-                    <div class="mt-1 text-[11px] text-amber-700 dark:text-amber-400">
-                        Klik tombol <strong>"KRS Terkunci (Buka Dispensasi)"</strong> di atas jika ingin mengizinkan mahasiswa mengisi KRS sekarang.
-                    </div>
-                </div>
-            </div>
-        @else
-            <div class="rounded-xl p-3.5 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200 text-xs flex items-center gap-3 shadow-xs">
-                <div class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <div>
-                    <span class="font-bold text-emerald-950 dark:text-emerald-100">KRS Semester {{ $activeSemester }} Terbuka Otomatis:</span>
-                    <span class="ml-1 text-emerald-700 dark:text-emerald-300">Seluruh kewajiban pembayaran semester berjalan telah lunas terverifikasi.</span>
-                </div>
-            </div>
-        @endif
 
         <!-- Summary KPI Ringkasan Kewajiban -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -165,25 +132,35 @@
             <div class="lg:col-span-5 space-y-6">
 
                 <!-- ---------------------------------------------------- -->
-                <!-- CARD 1: TERMINAL KASIR TUNAI (CASH)                  -->
+                <!-- CARD 1: TERMINAL KASIR TUNAI (CASH) & TRANSFER       -->
                 <!-- ---------------------------------------------------- -->
                 <div class="card-saas p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-siakad-light/70 dark:border-gray-700">
                     <div class="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
                         <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                </svg>
+                            <div
+                                class="w-8 h-8 rounded-lg flex items-center justify-center transition"
+                                :class="paymentMethod === 'Transfer' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'"
+                            >
+                                <template x-if="paymentMethod === 'Tunai'">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
+                                </template>
+                                <template x-if="paymentMethod === 'Transfer'">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                    </svg>
+                                </template>
                             </div>
                             <div>
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-siakad-dark dark:text-white">
-                                    KASIR PEMBAYARAN TUNAI
-    </h3>
+                                    KASIR PEMBAYARAN TUNAI &amp; TRANSFER
+                                </h3>
                             </div>
                         </div>
                     </div>
 
-                    {{-- Form Pembayaran Tunai --}}
+                    {{-- Form Pembayaran Tunai & Transfer --}}
                     <form action="{{ route('admin.payments.student.cash-pay', $mahasiswa->id) }}" method="POST" class="space-y-4">
                         @csrf
 
@@ -211,7 +188,7 @@
 
                         <template x-if="selectedBills.length === 0">
                             <div class="p-3.5 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-dashed border-gray-300 dark:border-gray-700 text-center text-xs text-gray-400">
-                                Belum ada tagihan yang dipilih. Isi nominal pada daftar tagihan di sebelah kanan.
+                                Belum ada tagihan yang dipilih. Masukkan nominal pada total pembayaran atau pilih opsi cepat.
                             </div>
                         </template>
 
@@ -225,28 +202,50 @@
 
                         <div>
                             <div class="flex items-center justify-between mb-1">
-                                <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                    TOTAL PEMBAYARAN TUNAI
+                                <label for="input_total_nominal" class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                    <span x-text="paymentMethod === 'Transfer' ? 'TOTAL PEMBAYARAN TRANSFER' : 'TOTAL PEMBAYARAN TUNAI (CASH)'"></span>
                                 </label>
+                                <template x-if="inputTotal > 0">
+                                    <span class="text-[11px] font-bold font-mono" :class="paymentMethod === 'Transfer' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'">
+                                        Rp <span x-text="formatRupiah(grandTotal)"></span>
+                                    </span>
+                                </template>
                             </div>
 
-                            <!-- Box Display Total Pembayaran Tunai -->
-                            <div class="p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/70 dark:bg-gray-900/60 flex items-center justify-between">
-                                <span class="text-base font-semibold text-gray-500 dark:text-gray-400 font-sans">
+                            <!-- Box Input Total Pembayaran Tunai / Transfer -->
+                            <div
+                                class="p-3 sm:p-4 rounded-xl border-2 border-dashed bg-gray-50/70 dark:bg-gray-900/60 flex items-center justify-between gap-2 transition"
+                                :class="paymentMethod === 'Transfer'
+                                    ? 'border-blue-400 dark:border-blue-600 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20'
+                                    : 'border-emerald-400 dark:border-emerald-600 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20'"
+                            >
+                                <span class="text-base font-bold text-gray-500 dark:text-gray-400 font-sans select-none">
                                     Rp.
                                 </span>
-                                <span class="text-2xl font-black text-siakad-dark dark:text-white font-mono tracking-tight">
-                                    <span x-text="formatRupiah(grandTotal)"></span>
-                                </span>
+                                <input
+                                    id="input_total_nominal"
+                                    type="text"
+                                    inputmode="numeric"
+                                    x-model="displayTotal"
+                                    @input="handleTotalInput($event)"
+                                    placeholder="0"
+                                    class="w-full text-right text-2xl font-black text-siakad-dark dark:text-white font-mono tracking-tight bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
+                                />
                             </div>
 
-                            <!-- Keterangan Kecil Dibawah Total: Cash / Tanpa Admin Fee -->
-                            <div class="flex items-center justify-between px-1 mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                <span>Pembayaran Tunai di Loket</span>
+
+                            <!-- Keterangan Kecil Dibawah Total -->
+                            <div class="flex items-center justify-between px-1 mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                <span x-text="paymentMethod === 'Transfer' ? 'Pembayaran via Transfer Bank' : 'Pembayaran Tunai di Loket Kasir'"></span>
+                                <template x-if="inputTotal > maxPayableTotal">
+                                    <span class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                        Maksimal sisa tagihan: Rp <span x-text="formatRupiah(maxPayableTotal)"></span>
+                                    </span>
+                                </template>
                             </div>
                         </div>
 
-                        <!-- Tanggal Pembayaran & No Bukti Manual -->
+                        <!-- Tanggal Pembayaran & Pilihan Cash / Transfer -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                             <div>
                                 <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
@@ -260,6 +259,64 @@
                                     class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-siakad-dark dark:text-white focus:ring-1 focus:ring-emerald-500"
                                 />
                             </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                                    Metode Pembayaran <span class="text-red-500">*</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-1.5">
+                                    <label
+                                        class="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer transition select-none"
+                                        :class="paymentMethod === 'Tunai'
+                                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500 shadow-xs'
+                                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="payment_method"
+                                            value="Tunai"
+                                            x-model="paymentMethod"
+                                            class="sr-only"
+                                        />
+                                        <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                        </svg>
+                                        <span>Cash</span>
+                                    </label>
+
+                                    <label
+                                        class="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer transition select-none"
+                                        :class="paymentMethod === 'Transfer'
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500 shadow-xs'
+                                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'"
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="payment_method"
+                                            value="Transfer"
+                                            x-model="paymentMethod"
+                                            class="sr-only"
+                                        />
+                                        <svg class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                        </svg>
+                                        <span>Transfer</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Input No Bukti Referensi Transfer (Jika Transfer Dipilih) -->
+                        <div x-show="paymentMethod === 'Transfer'" x-transition class="pt-1">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                                Nomor Referensi / Bukti Transfer (Opsional)
+                            </label>
+                            <input
+                                type="text"
+                                name="reference_number"
+                                placeholder="Contoh: TRF-BCA-123456"
+                                class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-siakad-dark dark:text-white focus:ring-1 focus:ring-blue-500 font-mono"
+                            />
                         </div>
 
                         <!-- Catatan Pembayaran -->
@@ -270,22 +327,23 @@
                             <input
                                 type="text"
                                 name="notes"
-                                placeholder="Contoh: Diterima tunai dari mahasiswa / wali"
-                                class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-siakad-dark dark:text-white focus:ring-1 focus:ring-emerald-500"
+                                :placeholder="paymentMethod === 'Transfer' ? 'Contoh: Diterima via transfer bank / rekening koran' : 'Contoh: Diterima tunai dari mahasiswa / wali'"
+                                class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-siakad-dark dark:text-white focus:ring-1"
+                                :class="paymentMethod === 'Transfer' ? 'focus:ring-blue-500' : 'focus:ring-emerald-500'"
                             />
                         </div>
 
-                        <!-- Tombol Submit Konfirmasi Pembayaran Tunai -->
+                        <!-- Tombol Submit Konfirmasi Pembayaran -->
                         <button
                             type="submit"
                             :disabled="grandTotal <= 0"
                             class="w-full py-3 px-4 rounded-xl text-xs font-bold text-white shadow-sm flex items-center justify-center gap-2 transition cursor-pointer"
-                            :class="grandTotal > 0 ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow' : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400'"
+                            :class="grandTotal > 0 ? (paymentMethod === 'Transfer' ? 'bg-blue-600 hover:bg-blue-700 hover:shadow' : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow') : 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400'"
                         >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            <span>Konfirmasi Pembayaran Tunai</span>
+                            <span x-text="paymentMethod === 'Transfer' ? 'Konfirmasi Pembayaran Transfer' : 'Konfirmasi Pembayaran Cash'"></span>
                         </button>
                     </form>
                 </div>
@@ -492,20 +550,19 @@
                                     <div class="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                         <div>
                                             <span class="block text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
-                                                Nominal Setoran Tunai:
+                                                Nominal Setoran:
                                             </span>
                                             <div class="inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
                                                 <span class="px-2.5 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
                                                     Rp
                                                 </span>
                                                 <input
-                                                    type="number"
-                                                    x-model.number="bills[{{ $unpaidIndex }}].amount"
-                                                    @input="onAmountInput({{ $unpaidIndex }})"
-                                                    min="0"
-                                                    max="{{ (int) $p->remaining_amount }}"
+                                                    type="text"
+                                                    inputmode="numeric"
+                                                    x-model="bills[{{ $unpaidIndex }}].displayAmount"
+                                                    @input="handleBillInput($event, {{ $unpaidIndex }})"
                                                     placeholder="0"
-                                                    class="w-28 sm:w-36 px-2.5 py-1.5 text-xs font-bold text-siakad-dark dark:text-white text-right border-0 focus:ring-0 focus:outline-none bg-transparent"
+                                                    class="w-28 sm:w-36 px-2.5 py-1.5 text-xs font-bold text-siakad-dark dark:text-white text-right border-0 focus:ring-0 focus:outline-none bg-transparent font-mono"
                                                 />
                                                 <button
                                                     type="button"
@@ -564,42 +621,120 @@
         function cashierApp() {
             return {
                 bills: @json($billsData),
+                inputTotal: 0,
+                displayTotal: '',
+                paymentMethod: 'Tunai',
 
-                isUnlocked(index) {
-                    if (index === 0) return true;
-                    const prevBill = this.bills[index - 1];
-                    if (!prevBill) return false;
-                    return prevBill.amount === prevBill.remaining;
+                init() {
+                    this.bills.forEach(bill => {
+                        bill.displayAmount = bill.amount > 0 ? this.formatRupiah(bill.amount) : '';
+                    });
+                    this.inputTotal = this.grandTotal;
+                    this.displayTotal = this.inputTotal > 0 ? this.formatRupiah(this.inputTotal) : '';
+                },
+
+                get maxPayableTotal() {
+                    return this.bills.reduce((acc, b) => acc + (parseInt(b.remaining) || 0), 0);
                 },
 
                 get selectedBills() {
-                    return this.bills.filter(b => b.amount > 0);
+                    return this.bills.filter(b => (parseInt(b.amount) || 0) > 0);
                 },
 
                 get grandTotal() {
-                    return this.selectedBills.reduce((acc, b) => acc + (parseInt(b.amount) || 0), 0);
+                    return this.bills.reduce((acc, b) => acc + (parseInt(b.amount) || 0), 0);
                 },
 
-                setBillFull(index) {
-                    const bill = this.bills[index];
-                    if (!bill) return;
-                    bill.amount = bill.remaining;
+                formatWithCursor(input, maxVal) {
+                    const oldVal = input.value;
+                    const oldPos = input.selectionEnd || 0;
+                    const digitsBeforeCursor = oldVal.slice(0, oldPos).replace(/\D/g, '').length;
+
+                    let raw = oldVal.replace(/\D/g, '');
+                    let val = raw ? parseInt(raw, 10) : 0;
+
+                    if (maxVal !== undefined && val > maxVal) {
+                        val = maxVal;
+                    }
+
+                    let formatted = val > 0 ? this.formatRupiah(val) : (raw === '' ? '' : '0');
+                    input.value = formatted;
+
+                    let newPos = 0;
+                    let digitCount = 0;
+                    while (newPos < formatted.length && digitCount < digitsBeforeCursor) {
+                        if (/\d/.test(formatted[newPos])) {
+                            digitCount++;
+                        }
+                        newPos++;
+                    }
+                    input.setSelectionRange(newPos, newPos);
+
+                    return val;
                 },
 
-                onAmountInput(index) {
+                handleTotalInput(event) {
+                    let val = this.formatWithCursor(event.target, this.maxPayableTotal);
+                    this.inputTotal = val;
+                    this.displayTotal = event.target.value;
+
+                    // Distribute waterfall to bills
+                    let remainingToDistribute = val;
+                    for (let i = 0; i < this.bills.length; i++) {
+                        const bill = this.bills[i];
+                        if (remainingToDistribute <= 0) {
+                            bill.amount = 0;
+                            bill.displayAmount = '';
+                        } else if (remainingToDistribute >= bill.remaining) {
+                            bill.amount = bill.remaining;
+                            bill.displayAmount = this.formatRupiah(bill.remaining);
+                            remainingToDistribute -= bill.remaining;
+                        } else {
+                            bill.amount = remainingToDistribute;
+                            bill.displayAmount = this.formatRupiah(remainingToDistribute);
+                            remainingToDistribute = 0;
+                        }
+                    }
+                },
+
+                handleBillInput(event, index) {
                     const bill = this.bills[index];
                     if (!bill) return;
-                    let val = parseInt(bill.amount) || 0;
-                    if (val < 0) val = 0;
-                    if (val > bill.remaining) val = bill.remaining;
+
+                    let val = this.formatWithCursor(event.target, bill.remaining);
                     bill.amount = val;
+                    bill.displayAmount = event.target.value;
 
                     // If not full, lock subsequent bills and reset them to 0
                     if (val < bill.remaining) {
                         for (let i = index + 1; i < this.bills.length; i++) {
                             this.bills[i].amount = 0;
+                            this.bills[i].displayAmount = '';
                         }
                     }
+
+                    this.inputTotal = this.grandTotal;
+                    this.displayTotal = this.inputTotal > 0 ? this.formatRupiah(this.inputTotal) : '';
+                },
+
+                setBillFull(index) {
+                    const bill = this.bills[index];
+                    if (!bill) return;
+                    for (let i = 0; i < index; i++) {
+                        this.bills[i].amount = this.bills[i].remaining;
+                        this.bills[i].displayAmount = this.formatRupiah(this.bills[i].remaining);
+                    }
+                    bill.amount = bill.remaining;
+                    bill.displayAmount = this.formatRupiah(bill.remaining);
+                    this.inputTotal = this.grandTotal;
+                    this.displayTotal = this.inputTotal > 0 ? this.formatRupiah(this.inputTotal) : '';
+                },
+
+                isUnlocked(index) {
+                    if (index === 0) return true;
+                    const prevBill = this.bills[index - 1];
+                    if (!prevBill) return false;
+                    return (prevBill.amount === prevBill.remaining) || (this.bills[index].amount > 0);
                 },
 
                 formatRupiah(num) {

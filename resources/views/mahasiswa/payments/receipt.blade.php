@@ -153,9 +153,9 @@
             </td>
             <td class="header-text">
                 <div class="header-title-main">KWITANSI PEMBAYARAN MAHASISWA</div>
-                <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div>
-                <div class="header-title-inst">{{ $institutionName ?? 'Sekolah Tinggi Ilmu Tarbiyah (STIT) Mambaul Hikmah' }}</div>
-                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Tegalwangi, Kecamatan Talang, Kabupaten Tegal, Jawa Tengah 52193' }} | Website : www.stitmambaulhikmah.ac.id</div>
+                <!-- <div class="header-title-year">TAHUN AKADEMIK {{ $tahunAkademik ?? ($payment->tahunAkademik ? $payment->tahunAkademik->tahun . ' ' . $payment->tahunAkademik->semester : '2026 / 2027 Akhir') }}</div> -->
+                <div class="header-title-main">{{ $institutionName ?? 'Sekolah Tinggi Ilmu Tarbiyah (STIT) Mambaul Hikmah' }}</div>
+                <div class="header-title-contact">Alamat : {{ $institutionAddress ?? 'Jl. Raya Tegalwangi RT 13 / RW 05 Tegalwangi - Talang - Tegal 52193' }} | Telp : 0813-9375-0612 | Website : www.stitmambaulhikmah.ac.id</div>
             </td>
         </tr>
     </table>
@@ -177,7 +177,9 @@
         </tr>
         <tr>
             <td>Program Studi</td>
-            <td colspan="3">: {{ $mahasiswa->prodi?->jenjang ?? 'S1' }} - {{ $mahasiswa->prodi?->nama }}</td>
+            <td>: {{ $mahasiswa->prodi?->jenjang ?? 'S1' }} - {{ $mahasiswa->prodi?->nama }}</td>
+            <td>Angkatan</td>
+            <td>: {{ $mahasiswa->angkatan ?? '-' }}</td>
         </tr>
     </table>
 

@@ -224,10 +224,10 @@
                 <div>
                     <h3 class="font-bold text-sm text-siakad-dark dark:text-white flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-siakad-secondary"></span>
-                        Tren  Pembayaran Mingguan
+                        Tren Pembayaran Mingguan
                     </h3>
                     <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
-                        Frekuensi transaksi via Online  &amp; Offline per minggu
+                        Frekuensi transaksi via Online &amp; Offline per minggu
                     </p>
                 </div>
                 <div class="flex items-center gap-2">

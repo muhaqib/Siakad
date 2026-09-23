@@ -128,6 +128,11 @@ class PaymentService
                 ]
             );
 
+            // Otomatis buka akses KRS jika pembayaran semester telah lunas
+            if ($isFullPayment && ($payment->paymentType?->category === 'semester' || $payment->paymentType?->category === 'registration')) {
+                $payment->mahasiswa->update(['is_krs_unlocked' => true]);
+            }
+
             // Notify Mahasiswa
             if ($payment->mahasiswa->user) {
                 $semesterInfo = $payment->paymentType->semester ? " Semester {$payment->paymentType->semester}" : '';
@@ -159,7 +164,7 @@ class PaymentService
     /**
      * Cancel a confirmed or partial student payment.
      */
-    public function cancelPayment(StudentPayment $payment, ?string $reason, User $actor): StudentPayment
+    public function cancelPayment(StudentPayment $payment, ?string $reason, User $actor, bool $isDelete = false): StudentPayment
     {
         $this->authorizePaymentAccess($payment, $actor);
 
@@ -167,47 +172,78 @@ class PaymentService
             throw new InvalidArgumentException('Hanya pembayaran berstatus lunas atau cicilan yang dapat dibatalkan.');
         }
 
-        return DB::transaction(function () use ($payment, $reason, $actor) {
+        return DB::transaction(function () use ($payment, $reason, $actor, $isDelete) {
             $payment->loadMissing(['mahasiswa.user', 'paymentType']);
 
             $oldStatus = $payment->status;
             $oldPaidAmount = $payment->paid_amount;
+
+            $actionNote = $reason
+                ? ($isDelete ? "Transaksi dihapus: {$reason}" : "Dibatalkan: {$reason}")
+                : ($isDelete ? 'Transaksi dihapus oleh admin' : 'Dibatalkan oleh admin');
 
             $payment->update([
                 'status' => 'unpaid',
                 'paid_amount' => 0,
                 'confirmed_at' => null,
                 'confirmed_by' => null,
-                'notes' => $reason ? "Dibatalkan: {$reason}" : $payment->notes,
+                'payment_method' => null,
+                'payment_date' => null,
+                'notes' => $actionNote,
             ]);
 
-            PaymentHistory::create([
-                'student_payment_id' => $payment->id,
-                'action' => 'cancelled',
-                'old_status' => $oldStatus,
-                'new_status' => 'unpaid',
-                'amount' => 0,
-                'notes' => $reason ?: 'Konfirmasi pembayaran dibatalkan.',
-                'performed_by' => $actor->id,
-            ]);
+            if ($isDelete) {
+                $payment->histories()->delete();
+            } else {
+                PaymentHistory::create([
+                    'student_payment_id' => $payment->id,
+                    'action' => 'cancelled',
+                    'old_status' => $oldStatus,
+                    'new_status' => 'unpaid',
+                    'amount' => 0,
+                    'notes' => $reason ?: 'Konfirmasi pembayaran dibatalkan.',
+                    'performed_by' => $actor->id,
+                ]);
+            }
+
+            // Jika pembayaran semester dibatalkan/dihapus, kunci kembali jika tidak ada semester lain yang lunas
+            if ($payment->paymentType?->category === 'semester') {
+                $hasOtherPaidSemester = $payment->mahasiswa->payments()
+                    ->where('id', '!=', $payment->id)
+                    ->whereHas('paymentType', fn ($q) => $q->where('category', 'semester'))
+                    ->where('status', 'paid')
+                    ->exists();
+
+                if (! $hasOtherPaidSemester) {
+                    $payment->mahasiswa->update(['is_krs_unlocked' => false]);
+                }
+            }
 
             $mhsName = $payment->mahasiswa->user->name ?? $payment->mahasiswa->nim;
             $typeName = $payment->paymentType->name ?? 'Pembayaran';
+            $verb = $isDelete ? 'menghapus transaksi' : 'membatalkan konfirmasi';
+
             $this->activityLogService->log(
-                action: "Admin membatalkan konfirmasi pembayaran {$typeName} mahasiswa {$mhsName} ({$payment->mahasiswa->nim}).",
+                action: "Admin {$verb} pembayaran {$typeName} mahasiswa {$mhsName} ({$payment->mahasiswa->nim}).",
                 model: $payment,
                 changes: [
                     'status' => 'unpaid',
+                    'is_delete' => $isDelete,
                     'reason' => $reason,
                 ]
             );
 
             if ($payment->mahasiswa->user) {
+                $notifTitle = $isDelete ? 'Transaksi Pembayaran Dihapus' : 'Konfirmasi Pembayaran Dibatalkan';
+                $notifBody = $isDelete
+                    ? "Transaksi pembayaran {$typeName} Anda telah dihapus oleh pihak administrasi."
+                    : "Konfirmasi pembayaran {$typeName} Anda telah dibatalkan oleh pihak administrasi.";
+
                 $this->notificationService->send(
                     user: $payment->mahasiswa->user,
                     type: Notification::TYPE_PAYMENT_CANCELLED,
-                    title: 'Konfirmasi Pembayaran Dibatalkan',
-                    message: "Konfirmasi pembayaran {$typeName} Anda telah dibatalkan oleh pihak administrasi.".($reason ? " Catatan: {$reason}" : ''),
+                    title: $notifTitle,
+                    message: $notifBody.($reason ? " Catatan: {$reason}" : ''),
                     data: [
                         'payment_id' => $payment->id,
                         'invoice_number' => $payment->invoice_number,

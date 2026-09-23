@@ -187,3 +187,75 @@ it('blocks kwitansi download if payment is unpaid and has 0 paid amount', functi
     $mhsResponse = $this->actingAs($this->user)->get(route('mahasiswa.payments.receipt', $payment->id));
     $mhsResponse->assertSessionHas('error');
 });
+
+it('displays the total payment input and payment method choices on admin cashier page', function () {
+    $response = $this->actingAs($this->admin)->get(route('admin.payments.student', $this->mahasiswa->id));
+
+    $response->assertSuccessful();
+    $response->assertSee('TOTAL PEMBAYARAN');
+    $response->assertSee('input_total_nominal');
+    $response->assertSee('Metode Pembayaran');
+    $response->assertSee('Cash');
+    $response->assertSee('Transfer');
+});
+
+it('processes admin payment with transfer method and custom reference number', function () {
+    $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $regPayment = $payments->first();
+
+    $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'payment_method' => 'Transfer',
+        'reference_number' => 'TRF-BCA-998877',
+        'notes' => 'Transfer via Bank BCA',
+        'bills' => [
+            [
+                'id' => $regPayment->id,
+                'amount' => (int) $regPayment->remaining_amount,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHas('success');
+
+    $regPayment->refresh();
+    expect($regPayment->isPaid())->toBeTrue();
+    expect($regPayment->payment_method)->toBe('Transfer');
+    expect($regPayment->notes)->toContain('Transfer via Bank BCA');
+    expect($regPayment->notes)->toContain('TRF-BCA-998877');
+
+    $this->assertDatabaseHas('payment_histories', [
+        'student_payment_id' => $regPayment->id,
+        'action' => 'confirmed',
+        'performed_by' => $this->admin->id,
+    ]);
+});
+
+it('automatically unlocks KRS when semester payment is paid in full', function () {
+    $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $regPayment = $payments[0];
+    $sem1Payment = $payments[1];
+
+    expect($this->mahasiswa->is_krs_unlocked)->toBeFalse();
+
+    // Pay semester 1 in full
+    $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'bills' => [
+            [
+                'id' => $sem1Payment->id,
+                'amount' => (int) $sem1Payment->remaining_amount,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHas('success');
+
+    $this->mahasiswa->refresh();
+    expect($this->mahasiswa->is_krs_unlocked)->toBeTrue();
+
+    // Student payment page should now display KRS Terbuka
+    $pageResponse = $this->actingAs($this->admin)->get(route('admin.payments.student', $this->mahasiswa->id));
+    $pageResponse->assertSuccessful();
+    $pageResponse->assertSee('KRS Terbuka');
+});

@@ -329,6 +329,11 @@ class MidtransService
 
                     $payment->update($updateData);
 
+                    // Otomatis buka akses KRS jika pembayaran semester telah lunas
+                    if ($isFullPayment && ($payment->paymentType?->category === 'semester' || $payment->paymentType?->category === 'registration')) {
+                        $payment->mahasiswa->update(['is_krs_unlocked' => true]);
+                    }
+
                     // Catat di PaymentHistory untuk audit trail
                     PaymentHistory::create([
                         'student_payment_id' => $payment->id,

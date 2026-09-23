@@ -11,66 +11,9 @@
         $isOutdatedOrder = isset($unpaidPrereq) && $unpaidPrereq;
     @endphp
 
-    <!-- Header bar -->
-    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-3">
-            <a href="{{ route('admin.payments.student', $payment->mahasiswa_id) }}" class="btn-ghost-saas p-2 rounded-xl inline-flex items-center justify-center bg-white dark:bg-gray-800 shadow-sm" title="Kembali ke Rincian Tagihan Mahasiswa">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-            </a>
-            <div>
-                <div class="flex items-center gap-2.5">
-                    <h1 class="text-xl font-bold text-siakad-dark dark:text-white font-mono tracking-tight">
-                        {{ $payment->invoice_number }}
-                    </h1>
-                    @if($payment->isPaid())
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Lunas
-                        </span>
-                    @elseif($payment->isPartial())
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Cicilan (Sisa Rp {{ number_format($remaining, 0, ',', '.') }})
-                        </span>
-                    @elseif($payment->status === 'cancelled')
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200">
-                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Dibatalkan
-                        </span>
-                    @else
-                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300">
-                            Belum Ada Pembayaran
-                        </span>
-                    @endif
-                </div>
-                <!-- Breadcrumbs -->
-                <div class="flex items-center gap-1.5 text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">
-                    <a href="{{ route('admin.payments.index') }}" class="hover:underline">Daftar Mahasiswa</a>
-                    <span>&rsaquo;</span>
-                    <a href="{{ route('admin.payments.student', $payment->mahasiswa_id) }}" class="hover:underline">{{ $payment->mahasiswa->user->name ?? $payment->mahasiswa->nim }}</a>
-                    <span>&rsaquo;</span>
-                    <span class="text-siakad-dark dark:text-white font-medium">{{ $payment->paymentType->name }}</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-            @if($paidAmount > 0)
-                <a href="{{ route('admin.payments.receipt', $payment->id) }}" target="_blank"
-                   class="btn-primary-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 shadow-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    <span>Cetak Kuitansi Resmi</span>
-                </a>
-            @endif
-            @if(in_array($payment->status, ['paid', 'partial']))
-                <button type="button" @click="openCancel = true" 
-                        class="btn-ghost-saas px-3 py-2 text-xs font-medium rounded-xl text-red-600 hover:text-red-700 dark:text-red-400 inline-flex items-center gap-1.5 bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    <span>Batalkan</span>
-                </button>
-            @endif
-        </div>
-    </div>
-
     <div class="space-y-6" x-data="{ 
         openCancel: false, 
+        actionType: 'delete',
         remainingAmount: {{ $remaining }}, 
         totalAmount: {{ $totalAmount }},
         payAmount: {{ $remaining }},
@@ -81,6 +24,66 @@
             this.payAmount = Math.min(this.remainingAmount, Math.max(0, val));
         }
     }">
+        <!-- Header bar -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <a href="{{ route('admin.payments.student', $payment->mahasiswa_id) }}" class="btn-ghost-saas p-2 rounded-xl inline-flex items-center justify-center bg-white dark:bg-gray-800 shadow-sm" title="Kembali ke Rincian Tagihan Mahasiswa">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </a>
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h1 class="text-xl font-bold text-siakad-dark dark:text-white font-mono tracking-tight">
+                            {{ $payment->invoice_number }}
+                        </h1>
+                        @if($payment->isPaid())
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Lunas
+                            </span>
+                        @elseif($payment->isPartial())
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Cicilan (Sisa Rp {{ number_format($remaining, 0, ',', '.') }})
+                            </span>
+                        @elseif($payment->status === 'cancelled')
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Dibatalkan
+                            </span>
+                        @else
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300">
+                                Belum Ada Pembayaran
+                            </span>
+                        @endif
+                    </div>
+                    <!-- Breadcrumbs -->
+                    <div class="flex items-center gap-1.5 text-[11px] text-siakad-secondary dark:text-gray-400 mt-1">
+                        <a href="{{ route('admin.payments.index') }}" class="hover:underline">Daftar Mahasiswa</a>
+                        <span>&rsaquo;</span>
+                        <a href="{{ route('admin.payments.student', $payment->mahasiswa_id) }}" class="hover:underline">{{ $payment->mahasiswa->user->name ?? $payment->mahasiswa->nim }}</a>
+                        <span>&rsaquo;</span>
+                        <span class="text-siakad-dark dark:text-white font-medium">{{ $payment->paymentType->name }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                @if($paidAmount > 0)
+                    <a href="{{ route('admin.payments.receipt', $payment->id) }}" target="_blank"
+                       class="btn-primary-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        <span>Cetak Kuitansi Resmi</span>
+                    </a>
+                @endif
+                @if(in_array($payment->status, ['paid', 'partial']))
+                    <button type="button" @click="openCancel = true" 
+                            class="px-3.5 py-2 text-xs font-semibold rounded-xl text-red-600 hover:text-red-700 dark:text-red-400 inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/50 transition shadow-xs cursor-pointer"
+                            title="Hapus atau Batalkan Transaksi Pembayaran Ini">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span>Hapus</span>
+                    </button>
+                @endif
+            </div>
+        </div>
 
         <!-- Session alerts -->
         @if(session('success'))
@@ -565,35 +568,92 @@
             </div>
         </div>
 
-        <!-- Cancel Confirmation Modal -->
+        <!-- Hapus / Batalkan Transaksi Confirmation Modal -->
         <div x-show="openCancel" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div class="flex items-center justify-center min-h-screen px-4 text-center">
                 <div x-show="openCancel" @click="openCancel = false" class="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
-                <div x-show="openCancel" class="inline-block align-bottom card-saas bg-white dark:bg-gray-800 text-left overflow-hidden shadow-saas-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full p-6">
-                    <div class="flex items-center gap-3 mb-3 text-red-600">
-                        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <div x-show="openCancel" class="inline-block align-bottom card-saas bg-white dark:bg-gray-800 text-left overflow-hidden shadow-saas-lg transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full p-6">
+                    <div class="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                        <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400 flex-shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                         </div>
                         <div>
-                            <h3 class="text-base font-bold text-siakad-dark dark:text-white">Batalkan Pembayaran</h3>
-                            <p class="text-xs text-siakad-secondary dark:text-gray-400">Pembayaran akan dikembalikan ke status belum bayar.</p>
+                            <h3 class="text-base font-bold text-siakad-dark dark:text-white">Hapus / Batalkan Transaksi</h3>
+                            <p class="text-xs text-siakad-secondary dark:text-gray-400">Pilih tindakan untuk transaksi pembayaran tagihan ini.</p>
+                        </div>
+                    </div>
+
+                    <!-- Ringkasan Info Transaksi -->
+                    <div class="mb-4 p-3.5 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 text-xs space-y-1.5">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">No. Invoice:</span>
+                            <span class="font-mono font-bold text-siakad-dark dark:text-white">{{ $payment->invoice_number }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Jenis Tagihan:</span>
+                            <span class="font-semibold text-siakad-dark dark:text-white">{{ $payment->paymentType->name }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Total Yang Telah Disetor:</span>
+                            <span class="font-mono font-bold text-red-600 dark:text-red-400">Rp {{ number_format($paidAmount, 0, ',', '.') }}</span>
                         </div>
                     </div>
 
                     <form action="{{ route('admin.payments.cancel', $payment->id) }}" method="POST" class="space-y-4">
                         @csrf
+
+                        <!-- Opsi Tindakan: Hapus Transaksi vs Batalkan Transaksi -->
                         <div>
-                            <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-300 mb-1">Alasan Pembatalan <span class="text-red-500">*</span></label>
-                            <textarea name="reason" rows="3" required placeholder="Masukkan alasan pembatalan pembayaran ini (contoh: salah input nominal / cek tertolak)..."
-                                      class="input-saas w-full px-3 py-2 text-sm"></textarea>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+                                Pilih Tindakan:
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition select-none"
+                                       :class="actionType === 'delete' ? 'border-red-500 bg-red-50/50 dark:bg-red-950/30 ring-1 ring-red-500' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'">
+                                    <input type="radio" name="action_type" value="delete" x-model="actionType" class="mt-0.5 text-red-600 focus:ring-red-500">
+                                    <div class="text-xs">
+                                        <span class="font-bold text-siakad-dark dark:text-white block">Hapus Transaksi (Reset Penuh)</span>
+                                        <span class="text-gray-500 dark:text-gray-400 text-[11px] block mt-0.5">
+                                            Menghapus seluruh setoran, mereset tagihan kembali menjadi belum dibayar (Rp 0), serta membersihkan riwayat setoran tagihan ini.
+                                        </span>
+                                    </div>
+                                </label>
+
+                                <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition select-none"
+                                       :class="actionType === 'cancel' ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/30 ring-1 ring-amber-500' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50'">
+                                    <input type="radio" name="action_type" value="cancel" x-model="actionType" class="mt-0.5 text-amber-600 focus:ring-amber-500">
+                                    <div class="text-xs">
+                                        <span class="font-bold text-siakad-dark dark:text-white block">Batalkan Transaksi (Catat di Riwayat)</span>
+                                        <span class="text-gray-500 dark:text-gray-400 text-[11px] block mt-0.5">
+                                            Mengembalikan status tagihan menjadi belum dibayar dan mencatat tindakan pembatalan ini ke riwayat audit.
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
 
-                        <div class="flex justify-end gap-2 pt-3 border-t border-siakad-light dark:border-gray-700">
-                            <button type="button" @click="openCancel = false" class="btn-ghost-saas px-4 py-2 rounded-lg text-sm font-medium">
+                        <!-- Alasan Pembatalan / Penghapusan -->
+                        <div>
+                            <label class="block text-xs font-semibold text-siakad-dark dark:text-gray-300 mb-1">
+                                Alasan / Catatan (Opsional)
+                            </label>
+                            <textarea name="reason" rows="2" placeholder="Contoh: Salah input transaksi / koreksi kasir / transaksi dibatalkan..."
+                                      class="w-full px-3 py-2 text-xs rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-siakad-dark dark:text-white focus:ring-1 focus:ring-red-500"></textarea>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                            <button type="button" @click="openCancel = false" class="btn-ghost-saas px-4 py-2 rounded-xl text-xs font-medium cursor-pointer">
                                 Batal
                             </button>
-                            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white transition shadow">
-                                Eksekusi Pembatalan
+                            <button type="submit"
+                                    class="px-4 py-2 text-xs font-bold rounded-xl text-white transition shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
+                                    :class="actionType === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                <span x-text="actionType === 'delete' ? 'Konfirmasi Hapus Transaksi' : 'Konfirmasi Batalkan Transaksi'"></span>
                             </button>
                         </div>
                     </form>

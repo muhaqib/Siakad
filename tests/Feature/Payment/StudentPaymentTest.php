@@ -220,6 +220,42 @@ test('admin can cancel confirmed payment', function () {
     expect($cancelHistory)->not->toBeNull();
 });
 
+test('admin can delete transaction cleanly resetting payment and removing history', function () {
+    $service = app(PaymentInitializationService::class);
+    $service->initializeStudentPayments($this->mahasiswaA);
+
+    $payment = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'semester_1'))->first();
+
+    // Confirm first
+    $this->actingAs($this->adminFakultasA)->post(route('admin.payments.confirm', $payment->id), [
+        'payment_date' => '2024-09-01',
+        'payment_method' => 'Tunai',
+        'paid_amount' => 1500000,
+        'notes' => 'Lunas',
+    ]);
+
+    expect($payment->fresh()->isPaid())->toBeTrue();
+    expect($payment->histories()->count())->toBeGreaterThan(0);
+
+    // Now Delete Transaction
+    $deleteResponse = $this->actingAs($this->adminFakultasA)->post(route('admin.payments.cancel', $payment->id), [
+        'action_type' => 'delete',
+        'reason' => 'Salah input transaksi',
+    ]);
+
+    $deleteResponse->assertSessionHas('success');
+
+    $payment->refresh();
+    expect($payment->status)->toBe('unpaid');
+    expect((float) $payment->paid_amount)->toBe(0.0);
+    expect($payment->confirmed_at)->toBeNull();
+    expect($payment->payment_method)->toBeNull();
+    expect($payment->payment_date)->toBeNull();
+
+    // Previous histories deleted
+    expect($payment->histories()->count())->toBe(0);
+});
+
 test('admin payments index displays student list and student detail displays all bills with sequential status', function () {
     $service = app(PaymentInitializationService::class);
     $service->initializeStudentPayments($this->mahasiswaA);
@@ -229,7 +265,7 @@ test('admin payments index displays student list and student detail displays all
     $dashboardResponse->assertSuccessful();
     $dashboardResponse->assertSee('Dashboard Pembayaran Mahasiswa');
     $dashboardResponse->assertSee('Penyelesaian Pembayaran Semester Ini');
-    $dashboardResponse->assertSee('Tren Mingguan Pembayaran (Online vs Offline)');
+    $dashboardResponse->assertSee('Tren Pembayaran Mingguan');
 
     // Payments index shows Mahasiswa list and Detail Tagihan link
     $indexResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.index'));

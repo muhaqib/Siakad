@@ -158,6 +158,12 @@ class PaymentController extends Controller
         $activeSemester = $this->paymentAccessService->determineStudentSemester($mahasiswa);
         $krsAccess = $this->paymentAccessService->checkKrsAccess($mahasiswa, $activeSemester);
 
+        // Jika pembayaran semester sudah lunas, otomatis sinkronkan status is_krs_unlocked ke true
+        if (($krsAccess['allowed'] ?? false) && ! $mahasiswa->is_krs_unlocked) {
+            $mahasiswa->update(['is_krs_unlocked' => true]);
+            $mahasiswa->refresh();
+        }
+
         $totalKewajiban = (float) $payments->sum('amount');
         $totalDibayar = (float) $payments->sum('paid_amount');
         $sisaTunggakan = max(0, $totalKewajiban - $totalDibayar);
@@ -187,10 +193,14 @@ class PaymentController extends Controller
         $user = Auth::user();
         $this->paymentService->authorizeStudentAccess($mahasiswa, $user);
 
-        $newStatus = ! $mahasiswa->is_krs_unlocked;
+        $activeSemester = $this->paymentAccessService->determineStudentSemester($mahasiswa);
+        $krsAccess = $this->paymentAccessService->checkKrsAccess($mahasiswa, $activeSemester);
+        $isCurrentlyOpen = (bool) ($mahasiswa->is_krs_unlocked || ($krsAccess['allowed'] ?? false));
+
+        $newStatus = ! $isCurrentlyOpen;
         $mahasiswa->update(['is_krs_unlocked' => $newStatus]);
 
-        $statusText = $newStatus ? 'DIBUKA (Dispensasi Pembayaran Aktif)' : 'DIKUNCI KEMBALI (Sesuai Syarat Pembayaran)';
+        $statusText = $newStatus ? 'DIBUKA (Dispensasi Pembayaran Aktif)' : 'DIKUNCI KEMBALI';
         $msg = "Akses KRS untuk mahasiswa {$mahasiswa->user->name} ({$mahasiswa->nim}) berhasil {$statusText}.";
 
         $this->activityLogService->log(
@@ -215,6 +225,7 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'payment_date' => 'required|date',
+            'payment_method' => 'nullable|in:Tunai,Transfer',
             'notes' => 'nullable|string|max:500',
             'reference_number' => 'nullable|string|max:100',
             'bills' => 'required|array|min:1',
@@ -227,6 +238,8 @@ class PaymentController extends Controller
         if ($bills->isEmpty()) {
             return redirect()->back()->with('error', 'Pilih minimal satu tagihan dengan nominal pembayaran lebih dari Rp 0.');
         }
+
+        $paymentMethod = $validated['payment_method'] ?? 'Tunai';
 
         try {
             DB::beginTransaction();
@@ -249,17 +262,22 @@ class PaymentController extends Controller
                     continue;
                 }
 
+                $prefix = $paymentMethod === 'Transfer' ? 'TRF-' : 'CASH-';
                 $refNumber = ! empty($validated['reference_number'] ?? null)
                     ? $validated['reference_number']
-                    : ('CASH-'.strtoupper(Str::random(8)));
+                    : ($prefix.strtoupper(Str::random(8)));
+
+                $defaultNote = $paymentMethod === 'Transfer'
+                    ? 'Pembayaran Transfer via Admin'
+                    : 'Pembayaran Tunai via Kasir Admin';
 
                 $payNotes = ! empty($validated['notes'] ?? null)
                     ? $validated['notes']
-                    : 'Pembayaran Tunai via Kasir Admin';
+                    : $defaultNote;
 
                 $this->paymentService->confirmPayment($payment, [
                     'payment_date' => $validated['payment_date'],
-                    'payment_method' => 'Tunai',
+                    'payment_method' => $paymentMethod,
                     'pay_amount' => $payAmount,
                     'reference_number' => $refNumber,
                     'notes' => $payNotes,
@@ -272,12 +290,13 @@ class PaymentController extends Controller
             DB::commit();
 
             $formattedTotal = number_format($totalPaid, 0, ',', '.');
+            $methodLabel = $paymentMethod === 'Transfer' ? 'transfer' : 'tunai';
 
-            return redirect()->back()->with('success', "Pembayaran tunai sebesar Rp {$formattedTotal} untuk {$processedCount} tagihan berhasil diproses.");
+            return redirect()->back()->with('success', "Pembayaran {$methodLabel} sebesar Rp {$formattedTotal} untuk {$processedCount} tagihan berhasil diproses.");
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return redirect()->back()->with('error', 'Gagal memproses pembayaran tunai: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memproses pembayaran: '.$e->getMessage());
         }
     }
 
@@ -405,13 +424,21 @@ class PaymentController extends Controller
         $this->paymentService->authorizePaymentAccess($payment, $user);
 
         $validated = $request->validate([
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
+            'action_type' => 'nullable|in:cancel,delete',
         ]);
 
-        try {
-            $this->paymentService->cancelPayment($payment, $validated['reason'], $user);
+        $reason = ! empty($validated['reason']) ? $validated['reason'] : null;
+        $isDelete = ($validated['action_type'] ?? 'cancel') === 'delete';
 
-            return redirect()->back()->with('success', 'Konfirmasi pembayaran berhasil dibatalkan.');
+        try {
+            $this->paymentService->cancelPayment($payment, $reason, $user, $isDelete);
+
+            $msg = $isDelete
+                ? 'Transaksi pembayaran berhasil dihapus dan tagihan telah direset menjadi belum bayar.'
+                : 'Konfirmasi pembayaran berhasil dibatalkan dan status dikembalikan ke belum bayar.';
+
+            return redirect()->back()->with('success', $msg);
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }

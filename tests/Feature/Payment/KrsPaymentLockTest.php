@@ -99,15 +99,15 @@ test('once payment is confirmed by admin, KRS unlocks and student can add kelas'
         'paid_amount' => $regPayment->amount,
     ], $this->adminFakultas);
 
-    // Confirm Semester 1
+    // Confirm Semester 1 with only minimum payment (20000)
     $sem1Payment = $this->mahasiswa->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'semester_1'))->first();
     $paymentService->confirmPayment($sem1Payment, [
         'payment_date' => '2024-09-01',
         'payment_method' => 'Transfer',
-        'paid_amount' => $sem1Payment->amount,
+        'paid_amount' => 20000,
     ], $this->adminFakultas);
 
-    // Mahasiswa accesses KRS page -> Unlocked!
+    // Mahasiswa accesses KRS page -> Unlocked because paid >= minimum!
     $response = $this->actingAs($this->user)->get(route('mahasiswa.krs.index'));
     $response->assertSuccessful();
     $response->assertDontSee('KRS Belum Dapat Diakses');
@@ -120,6 +120,33 @@ test('once payment is confirmed by admin, KRS unlocks and student can add kelas'
     ]);
 
     $postResponse->assertSessionHas('success', 'Kelas berhasil diambil');
+});
+
+test('partial payment below minimum threshold does not unlock KRS', function () {
+    $paymentService = app(PaymentService::class);
+
+    // Confirm Registration
+    $regPayment = $this->mahasiswa->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'registration'))->first();
+    $paymentService->confirmPayment($regPayment, [
+        'paid_amount' => $regPayment->amount,
+    ], $this->adminFakultas);
+
+    // Pay only 10000 (below minimum of 20000)
+    $sem1Payment = $this->mahasiswa->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'semester_1'))->first();
+    $paymentService->confirmPayment($sem1Payment, [
+        'payment_date' => '2024-09-01',
+        'payment_method' => 'Transfer',
+        'paid_amount' => 10000,
+    ], $this->adminFakultas);
+
+    // Reset is_krs_unlocked since 10000 < 20000 minimum but PaymentService auto-unlocked it
+    // (PaymentService checks via config too, so it should NOT have unlocked)
+    $this->mahasiswa->refresh();
+
+    // KRS should still be locked
+    $response = $this->actingAs($this->user)->get(route('mahasiswa.krs.index'));
+    $response->assertSuccessful();
+    $response->assertSee('KRS Belum Dapat Diakses');
 });
 
 test('paid semester 1 does not unlock semester 2 when student advances to semester 2', function () {

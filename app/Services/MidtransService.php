@@ -329,10 +329,9 @@ class MidtransService
 
                     $payment->update($updateData);
 
-                    // Otomatis buka akses KRS jika pembayaran semester telah lunas
-                    if ($isFullPayment && ($payment->paymentType?->category === 'semester' || $payment->paymentType?->category === 'registration')) {
-                        $payment->mahasiswa->update(['is_krs_unlocked' => true]);
-                    }
+                    // Note: KRS access is now determined dynamically by PaymentAccessService
+                    // based on the minimum payment threshold (config: siakad.krs_minimum_payment).
+                    // The is_krs_unlocked flag is reserved for manual admin dispensation only.
 
                     // Catat di PaymentHistory untuk audit trail
                     PaymentHistory::create([

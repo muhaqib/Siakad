@@ -18,7 +18,6 @@ return [
         'mahasiswa',
     ],
 
-
     /*
     |--------------------------------------------------------------------------
     | Label Semester
@@ -29,7 +28,6 @@ return [
         1 => 'Ganjil',
         2 => 'Genap',
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -49,7 +47,6 @@ return [
         'approved',
         'rejected',
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -73,7 +70,6 @@ return [
         ['min' => 0,  'max' => 54,  'huruf' => 'E',  'bobot' => 0.00],
     ],
 
-
     /*
     |--------------------------------------------------------------------------
     | Status Nilai
@@ -85,7 +81,6 @@ return [
         'submitted',    // menunggu verifikasi
         'final',        // terkunci, tidak bisa diubah
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -105,9 +100,8 @@ return [
             ['min' => 2.51, 'max' => 3.00, 'sks' => 20],
             ['min' => 2.00, 'max' => 2.50, 'sks' => 18],
             ['min' => 0.00, 'max' => 1.99, 'sks' => 14],
-        ]
+        ],
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -117,7 +111,6 @@ return [
 
     'kelas_kapasitas_default' => 40,
 
-
     /*
     |--------------------------------------------------------------------------
     | Pagination Default
@@ -125,7 +118,6 @@ return [
     */
 
     'pagination' => 15,
-
 
     /*
     |--------------------------------------------------------------------------
@@ -135,6 +127,19 @@ return [
 
     'format_tanggal' => 'd-m-Y',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Minimum Pembayaran untuk Akses KRS
+    |--------------------------------------------------------------------------
+    |
+    | Jumlah minimum (dalam Rupiah) yang harus dibayarkan mahasiswa
+    | pada setiap semester agar KRS dapat diakses secara otomatis.
+    | Set ke 0 untuk mengizinkan akses KRS tanpa pembayaran.
+    | Set ke null untuk mengharuskan lunas penuh.
+    |
+    */
+
+    'krs_minimum_payment' => env('KRS_MINIMUM_PAYMENT', 200000),
 
     /*
     |--------------------------------------------------------------------------
@@ -143,6 +148,6 @@ return [
     */
 
     'app_name' => 'SIAKAD Universitas',
-    'version'  => '1.0.0',
+    'version' => '1.0.0',
 
 ];

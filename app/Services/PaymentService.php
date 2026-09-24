@@ -128,10 +128,9 @@ class PaymentService
                 ]
             );
 
-            // Otomatis buka akses KRS jika pembayaran semester telah lunas
-            if ($isFullPayment && ($payment->paymentType?->category === 'semester' || $payment->paymentType?->category === 'registration')) {
-                $payment->mahasiswa->update(['is_krs_unlocked' => true]);
-            }
+            // Note: KRS access is now determined dynamically by PaymentAccessService
+            // based on the minimum payment threshold (config: siakad.krs_minimum_payment).
+            // The is_krs_unlocked flag is reserved for manual admin dispensation only.
 
             // Notify Mahasiswa
             if ($payment->mahasiswa->user) {
@@ -206,18 +205,8 @@ class PaymentService
                 ]);
             }
 
-            // Jika pembayaran semester dibatalkan/dihapus, kunci kembali jika tidak ada semester lain yang lunas
-            if ($payment->paymentType?->category === 'semester') {
-                $hasOtherPaidSemester = $payment->mahasiswa->payments()
-                    ->where('id', '!=', $payment->id)
-                    ->whereHas('paymentType', fn ($q) => $q->where('category', 'semester'))
-                    ->where('status', 'paid')
-                    ->exists();
-
-                if (! $hasOtherPaidSemester) {
-                    $payment->mahasiswa->update(['is_krs_unlocked' => false]);
-                }
-            }
+            // Note: is_krs_unlocked is reserved for manual admin dispensation only.
+            // KRS access is determined dynamically by PaymentAccessService.
 
             $mhsName = $payment->mahasiswa->user->name ?? $payment->mahasiswa->nim;
             $typeName = $payment->paymentType->name ?? 'Pembayaran';

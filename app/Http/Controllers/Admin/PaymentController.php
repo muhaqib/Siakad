@@ -158,11 +158,8 @@ class PaymentController extends Controller
         $activeSemester = $this->paymentAccessService->determineStudentSemester($mahasiswa);
         $krsAccess = $this->paymentAccessService->checkKrsAccess($mahasiswa, $activeSemester);
 
-        // Jika pembayaran semester sudah lunas, otomatis sinkronkan status is_krs_unlocked ke true
-        if (($krsAccess['allowed'] ?? false) && ! $mahasiswa->is_krs_unlocked) {
-            $mahasiswa->update(['is_krs_unlocked' => true]);
-            $mahasiswa->refresh();
-        }
+        // Note: KRS access is now determined dynamically by PaymentAccessService
+        // based on the minimum payment threshold. is_krs_unlocked is for admin dispensation only.
 
         $totalKewajiban = (float) $payments->sum('amount');
         $totalDibayar = (float) $payments->sum('paid_amount');

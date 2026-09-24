@@ -92,6 +92,49 @@ class PaymentAccessService
     }
 
     /**
+     * Check if the student has paid at least the minimum required amount for KRS access.
+     * Uses config('siakad.krs_minimum_payment') to determine the threshold.
+     * If config is null, full payment is required (falls back to isSemesterPaid).
+     */
+    public function hasSufficientPaymentForKrs(Mahasiswa $mahasiswa, int $semester): bool
+    {
+        $minimumPayment = config('siakad.krs_minimum_payment');
+
+        // If minimum is null, require full payment
+        if ($minimumPayment === null) {
+            return $this->isSemesterPaid($mahasiswa, $semester);
+        }
+
+        // If minimum is 0, always allow KRS access
+        if ((float) $minimumPayment <= 0) {
+            return true;
+        }
+
+        $payment = StudentPayment::where('mahasiswa_id', $mahasiswa->id)
+            ->whereHas('paymentType', function ($q) use ($semester) {
+                $q->where('category', 'semester')
+                    ->where('semester', $semester);
+            })
+            ->first();
+
+        if (! $payment) {
+            if ($semester > 8) {
+                return $this->hasSufficientPaymentForKrs($mahasiswa, 8);
+            }
+
+            return false;
+        }
+
+        // Already fully paid
+        if ($payment->isPaid()) {
+            return true;
+        }
+
+        // Check if paid_amount meets the minimum threshold
+        return (float) $payment->paid_amount >= (float) $minimumPayment;
+    }
+
+    /**
      * Get payment status record for a given semester.
      */
     public function getPaymentStatus(Mahasiswa $mahasiswa, int $semester): ?StudentPayment
@@ -159,15 +202,17 @@ class PaymentAccessService
             ];
         }
 
-        // 2. Check target semester fee
-        if (! $this->isSemesterPaid($mahasiswa, $targetSemester)) {
+        // 2. Check target semester fee with minimum payment threshold
+        if (! $this->hasSufficientPaymentForKrs($mahasiswa, $targetSemester)) {
             $semesterPayment = $this->getPaymentStatus($mahasiswa, $targetSemester);
+            $minimumPayment = config('siakad.krs_minimum_payment');
+            $formattedMinimum = number_format((float) $minimumPayment, 0, ',', '.');
 
             return [
                 'allowed' => false,
                 'semester' => $targetSemester,
                 'unpaid_payment' => $semesterPayment,
-                'reason' => "Pembayaran perkuliahan Semester {$targetSemester} belum dikonfirmasi lunas.",
+                'reason' => "Pembayaran perkuliahan Semester {$targetSemester} belum mencapai minimum Rp {$formattedMinimum} untuk akses KRS.",
             ];
         }
 

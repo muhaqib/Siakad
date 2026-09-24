@@ -231,28 +231,40 @@ it('processes admin payment with transfer method and custom reference number', f
     ]);
 });
 
-it('automatically unlocks KRS when semester payment is paid in full', function () {
+it('automatically unlocks KRS when semester payment meets minimum threshold', function () {
     $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
     $regPayment = $payments[0];
     $sem1Payment = $payments[1];
 
-    expect($this->mahasiswa->is_krs_unlocked)->toBeFalse();
+    $paymentAccessService = app(PaymentAccessService::class);
+    expect($paymentAccessService->canAccessKrs($this->mahasiswa))->toBeFalse();
 
-    // Pay semester 1 in full
+    // Pay registration first
+    $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'bills' => [
+            [
+                'id' => $regPayment->id,
+                'amount' => (int) $regPayment->remaining_amount,
+            ],
+        ],
+    ]);
+
+    // Pay semester 1 with minimum amount (20000)
     $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
         'payment_date' => now()->format('Y-m-d'),
         'bills' => [
             [
                 'id' => $sem1Payment->id,
-                'amount' => (int) $sem1Payment->remaining_amount,
+                'amount' => 20000,
             ],
         ],
     ]);
 
     $response->assertSessionHas('success');
 
-    $this->mahasiswa->refresh();
-    expect($this->mahasiswa->is_krs_unlocked)->toBeTrue();
+    // KRS should be accessible now (via dynamic check, not is_krs_unlocked flag)
+    expect($paymentAccessService->canAccessKrs($this->mahasiswa))->toBeTrue();
 
     // Student payment page should now display KRS Terbuka
     $pageResponse = $this->actingAs($this->admin)->get(route('admin.payments.student', $this->mahasiswa->id));

@@ -12,7 +12,7 @@
                 'name' => $p->paymentType->name,
                 'invoice' => $p->invoice_number,
                 'remaining' => (int) $p->remaining_amount,
-                'amount' => $index === 0 ? (int) $p->remaining_amount : 0,
+                'amount' => 0,
             ];
         })->values();
     @endphp
@@ -89,6 +89,83 @@
                             </button>
                         @endif
                     </form>
+
+                    <!-- Print Tagihan Semester Ini (Direct Primary Button) -->
+                    <a
+                        href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $activeSemester]) }}"
+                        target="_blank"
+                        class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition cursor-pointer"
+                        title="Cetak Tagihan Semester {{ $activeSemester }} Per Bulan (PDF)"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        <span>Print Tagihan Sem {{ $activeSemester }} (PDF)</span>
+                    </a>
+
+                    <!-- Print Tagihan Semester Lainnya (Dropdown) -->
+                    <div class="relative" x-data="{ openInvoice: false }" @click.away="openInvoice = false">
+                        <button
+                            type="button"
+                            @click="openInvoice = !openInvoice"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 shadow-xs transition cursor-pointer"
+                            title="Pilih Semester Lain untuk Cetak Tagihan PDF"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span>Semester Lain</span>
+                            <svg class="w-3 h-3 transition-transform" :class="openInvoice ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown List Semester -->
+                        <div
+                            x-show="openInvoice"
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-100"
+                            x-transition:leave-start="opacity-100 scale-100"
+                            x-transition:leave-end="opacity-0 scale-95"
+                            class="absolute right-0 mt-2 w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden"
+                        >
+                            <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Cetak Tagihan Per Semester</span>
+                                <span class="text-[9px] text-gray-400">PDF 6 Bulan</span>
+                            </div>
+                            <div class="py-1 max-h-64 overflow-y-auto">
+                                @for($s = 1; $s <= 8; $s++)
+                                    @php
+                                        $semPayment = $payments->first(fn($p) => $p->paymentType && $p->paymentType->category === 'semester' && (int)$p->paymentType->semester === $s);
+                                    @endphp
+                                    <a
+                                        href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $s]) }}"
+                                        target="_blank"
+                                        class="flex items-center justify-between px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-700/50 transition {{ $s === (int)$activeSemester ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : '' }}"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-3.5 h-3.5 {{ $s === (int)$activeSemester ? 'text-indigo-600 font-bold' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                            <span class="font-semibold text-siakad-dark dark:text-white">Semester {{ $s }}</span>
+                                            @if($s === (int)$activeSemester)
+                                                <span class="text-[9px] px-1 py-0.2 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold">Aktif</span>
+                                            @endif
+                                        </div>
+                                        @if($semPayment)
+                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md {{ $semPayment->isPaid() ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : ($semPayment->paid_amount > 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400') }}">
+                                                {{ $semPayment->isPaid() ? 'Lunas' : ($semPayment->paid_amount > 0 ? 'Cicilan' : 'Belum') }}
+                                            </span>
+                                        @else
+                                            <span class="text-[10px] text-gray-400 dark:text-gray-500">Tagihan</span>
+                                        @endif
+                                    </a>
+                                @endfor
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -113,10 +190,10 @@
             </div>
 
             <div class="card-saas p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-siakad-light/70 dark:border-gray-700">
-                <p class="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Sisa Tunggakan</p>
-                <p class="text-xl font-black text-amber-600 dark:text-amber-400 mt-1 font-mono">Rp {{ number_format($sisaTunggakan, 0, ',', '.') }}</p>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Tunggakan Semester Ini</p>
+                <p class="text-xl font-black text-amber-600 dark:text-amber-400 mt-1 font-mono">Rp {{ number_format($tunggakanSemesterIni ?? 0, 0, ',', '.') }}</p>
                 <p class="text-[10px] text-siakad-secondary dark:text-gray-400 mt-1">
-                    {{ $sisaTunggakan > 0 ? 'Terdapat tagihan yang belum tuntas' : '✓ Semua kewajiban telah lunas' }}
+                    {{ ($tunggakanSemesterIni ?? 0) > 0 ? "Kewajiban Semester {$activeSemester} belum lunas" : "✓ Tagihan Semester {$activeSemester} telah lunas" }}
                 </p>
             </div>
         </div>
@@ -495,8 +572,14 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
+                                            <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                                <span>Tagihan PDF</span>
+                                            </a>
+                                        @endif
                                         <a href="{{ route('admin.payments.receipt', $p->id) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition" title="Cetak Kwitansi">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                             <span>Kwitansi</span>
                                         </a>
                                     </div>
@@ -536,14 +619,20 @@
                                             </div>
                                         </div>
 
-                                        @if($p->paid_amount > 0)
-                                            <div>
-                                                <a href="{{ route('admin.payments.receipt', $p->id) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition" title="Cetak Kwitansi Setoran Sebagian">
+                                        <div class="flex items-center gap-2">
+                                            @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
+                                                <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                                    <span>Tagihan PDF</span>
+                                                </a>
+                                            @endif
+                                            @if($p->paid_amount > 0)
+                                                <a href="{{ route('admin.payments.receipt', $p->id) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition" title="Cetak Kwitansi Setoran Sebagian">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                                     <span>Kwitansi Cicilan</span>
                                                 </a>
-                                            </div>
-                                        @endif
+                                            @endif
+                                        </div>
                                     </div>
 
                                     <!-- Bagian Input Nominal & Tombol PENUH -->
@@ -601,9 +690,17 @@
                                             </span>
                                         </div>
                                     </div>
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
-                                        Terkunci
-                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
+                                            <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition pointer-events-auto cursor-pointer" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                                <span>Tagihan PDF</span>
+                                            </a>
+                                        @endif
+                                        <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
+                                            Terkunci
+                                        </span>
+                                    </div>
                                 </div>
                             @endif
 

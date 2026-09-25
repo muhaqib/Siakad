@@ -250,13 +250,14 @@ it('automatically unlocks KRS when semester payment meets minimum threshold', fu
         ],
     ]);
 
-    // Pay semester 1 with minimum amount (20000)
+    // Pay semester 1 with minimum amount from config
+    $minimumPayment = config('siakad.krs_minimum_payment');
     $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
         'payment_date' => now()->format('Y-m-d'),
         'bills' => [
             [
                 'id' => $sem1Payment->id,
-                'amount' => 20000,
+                'amount' => $minimumPayment,
             ],
         ],
     ]);

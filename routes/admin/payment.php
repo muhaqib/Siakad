@@ -21,6 +21,7 @@ Route::middleware(['auth', 'role:admin', 'fakultas.scope'])->prefix('admin')->na
     Route::post('/payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
     Route::get('/payments/{payment}/history', [PaymentController::class, 'history'])->name('payments.history');
     Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    Route::get('/payments/student/{mahasiswa}/invoice/{semester?}', [PaymentController::class, 'semesterInvoice'])->name('payments.student.invoice');
 
     // Payment Types (Superadmin only)
     Route::get('/payment-types', [PaymentTypeController::class, 'index'])->name('payment-types.index');

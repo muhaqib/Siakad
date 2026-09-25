@@ -158,7 +158,7 @@ test('admin can confirm payment, creating history, activity log, and notificatio
     $response = $this->actingAs($this->adminFakultasA)->post(route('admin.payments.confirm', $payment->id), [
         'payment_date' => '2024-09-01',
         'payment_method' => 'Transfer',
-        'paid_amount' => 1500000,
+        'paid_amount' => 1200000,
         'notes' => 'Lunas via transfer BSI No. Ref 987654321',
     ]);
 
@@ -166,7 +166,7 @@ test('admin can confirm payment, creating history, activity log, and notificatio
 
     $payment->refresh();
     expect($payment->status)->toBe('paid');
-    expect((float) $payment->paid_amount)->toBe(1500000.0);
+    expect((float) $payment->paid_amount)->toBe(1200000.0);
     expect($payment->payment_method)->toBe('Transfer');
     expect($payment->confirmed_by)->toBe($this->adminFakultasA->id);
 
@@ -322,17 +322,17 @@ test('admin can execute partial payments and multiple installments reducing rema
     $service = app(PaymentInitializationService::class);
     $service->initializeStudentPayments($this->mahasiswaA);
 
-    // Registration payment is the first in order (amount = 350.000)
+    // Registration payment is the first in order (amount = 1.925.000)
     $paymentReg = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'registration'))->first();
-    expect((float) $paymentReg->amount)->toBe(350000.0);
+    expect((float) $paymentReg->amount)->toBe(1925000.0);
     expect((float) $paymentReg->paid_amount)->toBe(0.0);
-    expect($paymentReg->remaining_amount)->toBe(350000.0);
+    expect($paymentReg->remaining_amount)->toBe(1925000.0);
 
-    // Installment 1: Pay 150.000
+    // Installment 1: Pay 925.000
     $res1 = $this->actingAs($this->adminFakultasA)->post(route('admin.payments.confirm', $paymentReg->id), [
         'payment_date' => '2024-09-01',
         'payment_method' => 'Tunai',
-        'pay_amount' => 150000,
+        'pay_amount' => 925000,
         'notes' => 'Cicilan pendaftaran ke-1',
     ]);
     $res1->assertSessionHas('success');
@@ -341,14 +341,14 @@ test('admin can execute partial payments and multiple installments reducing rema
     expect($paymentReg->status)->toBe('partial');
     expect($paymentReg->isPartial())->toBeTrue();
     expect($paymentReg->isPaid())->toBeFalse();
-    expect((float) $paymentReg->paid_amount)->toBe(150000.0);
-    expect($paymentReg->remaining_amount)->toBe(200000.0);
+    expect((float) $paymentReg->paid_amount)->toBe(925000.0);
+    expect($paymentReg->remaining_amount)->toBe(1000000.0);
 
-    // Installment 2: Pay remaining 200.000
+    // Installment 2: Pay remaining 1.000.000
     $res2 = $this->actingAs($this->adminFakultasA)->post(route('admin.payments.confirm', $paymentReg->id), [
         'payment_date' => '2024-09-02',
         'payment_method' => 'Transfer',
-        'pay_amount' => 200000,
+        'pay_amount' => 1000000,
         'notes' => 'Pelunasan sisa pendaftaran',
     ]);
     $res2->assertSessionHas('success');
@@ -357,7 +357,7 @@ test('admin can execute partial payments and multiple installments reducing rema
     expect($paymentReg->status)->toBe('paid');
     expect($paymentReg->isPaid())->toBeTrue();
     expect($paymentReg->isPartial())->toBeFalse();
-    expect((float) $paymentReg->paid_amount)->toBe(350000.0);
+    expect((float) $paymentReg->paid_amount)->toBe(1925000.0);
     expect($paymentReg->remaining_amount)->toBe(0.0);
 
     // Assert 2 payment transaction histories plus 1 initial creation history

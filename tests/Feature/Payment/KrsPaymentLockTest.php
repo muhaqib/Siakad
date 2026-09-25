@@ -99,12 +99,13 @@ test('once payment is confirmed by admin, KRS unlocks and student can add kelas'
         'paid_amount' => $regPayment->amount,
     ], $this->adminFakultas);
 
-    // Confirm Semester 1 with only minimum payment (20000)
+    // Confirm Semester 1 with only minimum payment
+    $minimumPayment = config('siakad.krs_minimum_payment');
     $sem1Payment = $this->mahasiswa->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'semester_1'))->first();
     $paymentService->confirmPayment($sem1Payment, [
         'payment_date' => '2024-09-01',
         'payment_method' => 'Transfer',
-        'paid_amount' => 20000,
+        'paid_amount' => $minimumPayment,
     ], $this->adminFakultas);
 
     // Mahasiswa accesses KRS page -> Unlocked because paid >= minimum!
@@ -131,12 +132,14 @@ test('partial payment below minimum threshold does not unlock KRS', function () 
         'paid_amount' => $regPayment->amount,
     ], $this->adminFakultas);
 
-    // Pay only 10000 (below minimum of 20000)
+    // Pay only half of minimum (below threshold)
+    $minimumPayment = config('siakad.krs_minimum_payment');
+    $belowMinimum = (int) ($minimumPayment / 2);
     $sem1Payment = $this->mahasiswa->payments()->whereHas('paymentType', fn ($q) => $q->where('code', 'semester_1'))->first();
     $paymentService->confirmPayment($sem1Payment, [
         'payment_date' => '2024-09-01',
         'payment_method' => 'Transfer',
-        'paid_amount' => 10000,
+        'paid_amount' => $belowMinimum,
     ], $this->adminFakultas);
 
     // Reset is_krs_unlocked since 10000 < 20000 minimum but PaymentService auto-unlocked it

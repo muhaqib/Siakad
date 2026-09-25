@@ -159,7 +159,7 @@
                                     <div class="flex items-center justify-between">
                                         <label for="input-nominal-{{ $payment->id }}" class="text-[11px] font-bold text-siakad-dark dark:text-gray-200 flex items-center gap-1.5">
                                             <span>Nominal yang Ingin Dibayar:</span>
-                                            <span id="badge-mode-{{ $payment->id }}" class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Pelunasan Penuh</span>
+                                            <span id="badge-mode-{{ $payment->id }}" class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Belum Diisi</span>
                                         </label>
                                         <button 
                                             type="button"
@@ -179,7 +179,8 @@
                                             min="10000"
                                             max="{{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }}"
                                             step="5000"
-                                            value="{{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }}"
+                                            value="0"
+                                            placeholder="0"
                                             oninput="updateNominalPreview({{ $payment->id }}, {{ $payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount }})"
                                             class="block w-full rounded-lg border border-siakad-light dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 pl-8 pr-3 text-xs font-bold text-siakad-dark dark:text-white focus:border-siakad-primary focus:ring-1 focus:ring-siakad-primary"
                                         />
@@ -197,7 +198,7 @@
                                     <svg class="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                                     </svg>
-                                    <span id="btn-text-{{ $payment->id }}">Bayar Transfer melalui Midtrans (Rp {{ number_format($payment->remaining_amount > 0 ? $payment->remaining_amount : $payment->amount, 0, ',', '.') }})</span>
+                                    <span id="btn-text-{{ $payment->id }}">Bayar Transfer melalui Midtrans (Rp 0)</span>
                                 </button>
                             </div>
 

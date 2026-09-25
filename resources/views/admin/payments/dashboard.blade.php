@@ -118,7 +118,8 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-xs font-medium text-amber-600 dark:text-amber-400">Total Tunggakan</p>
-                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">Rp {{ number_format($stats['total_tunggakan'], 0, ',', '.') }}</p>
+                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                        Rp {{ number_format($semesterCompletion['total_nominal_tunggakan'], 0, ',', '.') }}</p>
                 </div>
                 <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>

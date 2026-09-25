@@ -16,7 +16,7 @@
         actionType: 'delete',
         remainingAmount: {{ $remaining }}, 
         totalAmount: {{ $totalAmount }},
-        payAmount: {{ $remaining }},
+        payAmount: 0,
         formatNumber(num) {
             return new Intl.NumberFormat('id-ID').format(Math.max(0, num));
         },

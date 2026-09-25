@@ -7,6 +7,7 @@ use App\Models\Fakultas;
 use App\Models\Mahasiswa;
 use App\Models\Prodi;
 use App\Models\StudentPayment;
+use App\Models\TahunAkademik;
 use App\Services\ActivityLogService;
 use App\Services\PaymentAccessService;
 use App\Services\PaymentInitializationService;
@@ -92,6 +93,24 @@ class PaymentController extends Controller
             $paidCount = $m->payments->where('status', 'paid')->count();
             $nextPayment = $this->paymentAccessService->getNextPaymentToPay($m);
 
+            $activeSemester = $this->paymentAccessService->determineStudentSemester($m);
+            $semesterIniPayments = $m->payments->filter(function ($p) use ($activeSemester) {
+                if (! $p->paymentType) {
+                    return false;
+                }
+                if ($p->paymentType->category === 'semester' && (int) $p->paymentType->semester === (int) $activeSemester) {
+                    return true;
+                }
+                if ((int) $activeSemester === 1 && $p->paymentType->category === 'registration') {
+                    return true;
+                }
+
+                return false;
+            });
+            $tunggakanSemesterIni = (float) $semesterIniPayments->sum('remaining_amount');
+
+            $m->active_semester = $activeSemester;
+            $m->tunggakan_semester_ini = $tunggakanSemesterIni;
             $m->total_kewajiban = $totalKewajiban;
             $m->total_dibayar = $totalDibayar;
             $m->sisa_tunggakan = $sisaTunggakan;
@@ -166,6 +185,22 @@ class PaymentController extends Controller
         $sisaTunggakan = max(0, $totalKewajiban - $totalDibayar);
         $persenLunas = $totalKewajiban > 0 ? min(100, (int) round(($totalDibayar / $totalKewajiban) * 100)) : 0;
 
+        // Tunggakan semester berjalan mahasiswa ini
+        $semesterIniPayments = $payments->filter(function ($p) use ($activeSemester) {
+            if (! $p->paymentType) {
+                return false;
+            }
+            if ($p->paymentType->category === 'semester' && (int) $p->paymentType->semester === (int) $activeSemester) {
+                return true;
+            }
+            if ((int) $activeSemester === 1 && $p->paymentType->category === 'registration') {
+                return true;
+            }
+
+            return false;
+        });
+        $tunggakanSemesterIni = (float) $semesterIniPayments->sum('remaining_amount');
+
         $recentTransactions = $payments->filter(fn ($p) => $p->isPaid() || (float) $p->paid_amount > 0 || $p->status === 'partial')->values();
 
         return view('admin.payments.student', compact(
@@ -177,6 +212,7 @@ class PaymentController extends Controller
             'totalKewajiban',
             'totalDibayar',
             'sisaTunggakan',
+            'tunggakanSemesterIni',
             'persenLunas',
             'user'
         ));
@@ -549,6 +585,187 @@ class PaymentController extends Controller
 
         // Printable HTML view
         return view('admin.payments.export', compact('payments', 'user'));
+    }
+
+    /**
+     * Generate printable semester invoice PDF with monthly installment breakdown.
+     * Semester payment is divided into 6 monthly installments.
+     */
+    public function semesterInvoice(Mahasiswa $mahasiswa, ?int $semester = null)
+    {
+        $user = Auth::user();
+        $this->paymentService->authorizeStudentAccess($mahasiswa, $user);
+
+        if (! $semester || $semester <= 0) {
+            $semester = $this->paymentAccessService->determineStudentSemester($mahasiswa);
+        }
+
+        $mahasiswa->load(['user', 'prodi.fakultas']);
+
+        // Auto-initialize if empty
+        if ($mahasiswa->payments()->count() === 0) {
+            $this->initializationService->initializeStudentPayments($mahasiswa);
+        }
+
+        // Find the semester payment
+        $payment = StudentPayment::with(['paymentType', 'tahunAkademik'])
+            ->where('mahasiswa_id', $mahasiswa->id)
+            ->whereHas('paymentType', function ($q) use ($semester) {
+                $q->where('category', 'semester')
+                    ->where('semester', $semester);
+            })
+            ->first();
+
+        if (! $payment) {
+            $paymentType = PaymentType::where('category', 'semester')
+                ->where('semester', $semester)
+                ->first();
+
+            if ($paymentType) {
+                $tahunAkademik = TahunAkademik::where('is_active', true)->first();
+                $year = date('Y');
+                $nim = preg_replace('/[^A-Za-z0-9]/', '', $mahasiswa->nim);
+                $invoiceNumber = "INV/{$year}/{$nim}/".strtoupper($paymentType->code);
+
+                $payment = StudentPayment::create([
+                    'mahasiswa_id' => $mahasiswa->id,
+                    'payment_type_id' => $paymentType->id,
+                    'tahun_akademik_id' => $tahunAkademik?->id,
+                    'invoice_number' => $invoiceNumber,
+                    'amount' => $paymentType->default_amount,
+                    'paid_amount' => 0,
+                    'status' => 'unpaid',
+                    'notes' => "Kewajiban {$paymentType->name}",
+                ]);
+                $payment->load(['paymentType', 'tahunAkademik']);
+            } else {
+                return redirect()->back()->with('error', "Tagihan pembayaran Semester {$semester} tidak ditemukan untuk mahasiswa ini.");
+            }
+        }
+
+        $totalTagihan = (float) $payment->amount;
+        $totalDibayar = (float) $payment->paid_amount;
+        $sisaKekurangan = max(0, $totalTagihan - $totalDibayar);
+
+        // Determine semester months (6 months per semester)
+        // Ganjil: September - Februari, Genap: Maret - Agustus
+        $isGanjil = ($semester % 2 !== 0);
+        $jumlahBulan = 6;
+        $tagihanPerBulan = ceil($totalTagihan / $jumlahBulan);
+
+        // Determine the starting year based on TahunAkademik or current year
+        $tahunAkademikModel = $payment->tahunAkademik ?? TahunAkademik::where('is_active', true)->first();
+        $tahunStr = $tahunAkademikModel?->tahun ?? date('Y').'/'.((int) date('Y') + 1);
+        $parts = explode('/', $tahunStr);
+        $startYear = (int) $parts[0];
+
+        $bulanGanjil = [
+            ['num' => 9, 'year' => $startYear],     // September
+            ['num' => 10, 'year' => $startYear],    // Oktober
+            ['num' => 11, 'year' => $startYear],    // November
+            ['num' => 12, 'year' => $startYear],    // Desember
+            ['num' => 1, 'year' => $startYear + 1], // Januari
+            ['num' => 2, 'year' => $startYear + 1], // Februari
+        ];
+
+        $bulanGenap = [
+            ['num' => 3, 'year' => $startYear + 1], // Maret
+            ['num' => 4, 'year' => $startYear + 1], // April
+            ['num' => 5, 'year' => $startYear + 1], // Mei
+            ['num' => 6, 'year' => $startYear + 1], // Juni
+            ['num' => 7, 'year' => $startYear + 1], // Juli
+            ['num' => 8, 'year' => $startYear + 1], // Agustus
+        ];
+
+        $bulanList = $isGanjil ? $bulanGanjil : $bulanGenap;
+
+        $namaBulan = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+        ];
+
+        // Build monthly breakdown
+        $runningPaid = $totalDibayar;
+        $monthlyBreakdown = [];
+
+        foreach ($bulanList as $index => $bulan) {
+            $monthLabel = $namaBulan[$bulan['num']].' '.$bulan['year'];
+
+            // Last month gets the remainder to ensure total matches exactly
+            $monthlyTagihan = ($index === $jumlahBulan - 1)
+                ? $totalTagihan - ($tagihanPerBulan * ($jumlahBulan - 1))
+                : $tagihanPerBulan;
+
+            // Calculate how much of this month has been paid
+            if ($runningPaid >= $monthlyTagihan) {
+                $monthlyDibayar = $monthlyTagihan;
+                $runningPaid -= $monthlyTagihan;
+                $lunas = true;
+            } elseif ($runningPaid > 0) {
+                $monthlyDibayar = $runningPaid;
+                $runningPaid = 0;
+                $lunas = false;
+            } else {
+                $monthlyDibayar = 0;
+                $lunas = false;
+            }
+
+            $monthlyBreakdown[] = [
+                'label' => $monthLabel,
+                'tagihan' => $monthlyTagihan,
+                'dibayar' => $monthlyDibayar,
+                'kekurangan' => max(0, $monthlyTagihan - $monthlyDibayar),
+                'lunas' => $lunas,
+            ];
+        }
+
+        $statusPembayaran = $payment->isPaid() ? 'LUNAS' : ($totalDibayar > 0 ? 'CICILAN' : 'BELUM BAYAR');
+
+        // Logo Base64
+        $logoPath = public_path('kwitansi_logo.png');
+        if (! file_exists($logoPath)) {
+            $logoPath = public_path('logo.PNG');
+        }
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+
+        $tahunAkademik = $tahunAkademikModel
+            ? $tahunAkademikModel->tahun.' '.$tahunAkademikModel->semester
+            : '-';
+
+        $tanggalCetak = now()->translatedFormat('d F Y');
+
+        $terbilang = $totalDibayar > 0 ? $this->terbilang((int) $totalDibayar) : '-';
+        $semesterNumber = $semester;
+        $adminName = $user->name;
+
+        $pdf = Pdf::loadView('admin.payments.invoice-semester', compact(
+            'mahasiswa',
+            'payment',
+            'semesterNumber',
+            'totalTagihan',
+            'totalDibayar',
+            'sisaKekurangan',
+            'statusPembayaran',
+            'monthlyBreakdown',
+            'jumlahBulan',
+            'tagihanPerBulan',
+            'terbilang',
+            'logoBase64',
+            'tahunAkademik',
+            'tanggalCetak',
+            'adminName'
+        ))->setPaper('a4', 'portrait');
+
+        $filename = 'Tagihan_Semester_'.$semester.'_'.$mahasiswa->nim.'.pdf';
+
+        if (request()->has('download')) {
+            return $pdf->download($filename);
+        }
+
+        return $pdf->stream($filename);
     }
 
     /**

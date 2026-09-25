@@ -123,7 +123,7 @@
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Program Studi</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Total Kewajiban</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Telah Dibayar</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Sisa Tunggakan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Tunggakan Semester Ini</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Status Pembayaran</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider text-right">Aksi</th>
                     </tr>
@@ -176,15 +176,15 @@
                             </div>
                         </td>
 
-                        <!-- Sisa Tunggakan -->
-                        <td class="px-4 py-3 font-bold {{ $m->sisa_tunggakan > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400' }}">
-                            Rp {{ number_format($m->sisa_tunggakan, 0, ',', '.') }}
+                        <!-- Sisa Tunggakan Semester Ini -->
+                        <td class="px-4 py-3 font-bold {{ ($m->tunggakan_semester_ini ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500' }}">
+                            Rp {{ number_format($m->tunggakan_semester_ini ?? 0, 0, ',', '.') }}
                         </td>
 
                         <!-- Status Ringkas Pembayaran -->
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap items-center gap-1">
-                                @if($m->sisa_tunggakan <= 0)
+                                @if(($m->tunggakan_semester_ini ?? 0) <= 0)
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
                                         ✓ Lunas
                                     </span>
@@ -207,13 +207,22 @@
                             </div>
                         </td>
 
-                        <!-- Aksi: Menuju Detail Semua Pembayaran -->
+                        <!-- Aksi: Menuju Detail Semua Pembayaran & Cetak Tagihan PDF -->
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('admin.payments.student', $m->id) }}" 
-                               class="btn-primary-saas px-3.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-sm">
-                                <span>Detail Tagihan</span>
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <a href="{{ route('admin.payments.student.invoice', $m->id) }}" target="_blank"
+                                   class="px-2.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 transition shadow-xs"
+                                   title="Cetak Tagihan Semester Berjalan (PDF)">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                    <span>Print Tagihan</span>
+                                </a>
+                                <a href="{{ route('admin.payments.student', $m->id) }}" 
+                                   class="btn-primary-saas px-3 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-sm"
+                                   title="Detail Tagihan">
+                                    <span>Detail Tagihan</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     @empty

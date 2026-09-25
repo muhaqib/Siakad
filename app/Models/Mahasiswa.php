@@ -82,4 +82,19 @@ class Mahasiswa extends Model
     {
         return $this->hasMany(StudentPayment::class);
     }
+
+    /**
+     * Retrieve the model for a bound value.
+     * Supports lookup by Mahasiswa ID or User ID.
+     *
+     * @param  mixed  $value
+     * @param  string|null  $field
+     * @return Model|null
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)
+            ->orWhere('user_id', $value)
+            ->first();
+    }
 }

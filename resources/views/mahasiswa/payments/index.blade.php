@@ -17,7 +17,7 @@
                 'name' => $p->paymentType->name,
                 'invoice' => $p->invoice_number,
                 'remaining' => (int) $p->remaining_amount,
-                'amount' => $index === 0 ? (int) $p->remaining_amount : 0,
+                'amount' => 0,
             ];
         })->values();
     @endphp

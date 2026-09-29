@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Fakultas;
 use App\Models\Mahasiswa;
+use App\Models\PaymentHistory;
 use App\Models\Prodi;
 use App\Models\StudentPayment;
 use App\Models\TahunAkademik;
@@ -202,7 +203,7 @@ class PaymentController extends Controller
         });
         $tunggakanSemesterIni = (float) $semesterIniPayments->sum('remaining_amount');
 
-        $recentTransactions = $payments->filter(fn ($p) => $p->isPaid() || (float) $p->paid_amount > 0 || $p->status === 'partial')->values();
+        $recentTransactions = $this->paymentService->getTransactionHistory($mahasiswa);
 
         return view('admin.payments.student', compact(
             'mahasiswa',
@@ -286,6 +287,11 @@ class PaymentController extends Controller
             $totalPaid = 0;
             $processedCount = 0;
 
+            $prefix = $paymentMethod === 'Transfer' ? 'TRF-' : 'CASH-';
+            $transactionRef = ! empty($validated['reference_number'] ?? null)
+                ? $validated['reference_number']
+                : ($prefix.now()->format('Ymd').'-'.strtoupper(Str::random(6)));
+
             foreach ($bills as $billItem) {
                 $payment = StudentPayment::where('id', $billItem['id'])
                     ->where('mahasiswa_id', $mahasiswa->id)
@@ -301,14 +307,9 @@ class PaymentController extends Controller
                     continue;
                 }
 
-                $prefix = $paymentMethod === 'Transfer' ? 'TRF-' : 'CASH-';
-                $refNumber = ! empty($validated['reference_number'] ?? null)
-                    ? $validated['reference_number']
-                    : ($prefix.strtoupper(Str::random(8)));
-
                 $defaultNote = $paymentMethod === 'Transfer'
-                    ? 'Pembayaran Transfer via Admin'
-                    : 'Pembayaran Tunai via Kasir Admin';
+                    ? 'Pembayaran Transfer'
+                    : 'Pembayaran Tunai';
 
                 $payNotes = ! empty($validated['notes'] ?? null)
                     ? $validated['notes']
@@ -318,7 +319,7 @@ class PaymentController extends Controller
                     'payment_date' => $validated['payment_date'],
                     'payment_method' => $paymentMethod,
                     'pay_amount' => $payAmount,
-                    'reference_number' => $refNumber,
+                    'reference_number' => $transactionRef,
                     'notes' => $payNotes,
                 ], $user);
 
@@ -331,7 +332,9 @@ class PaymentController extends Controller
             $formattedTotal = number_format($totalPaid, 0, ',', '.');
             $methodLabel = $paymentMethod === 'Transfer' ? 'transfer' : 'tunai';
 
-            return redirect()->back()->with('success', "Pembayaran {$methodLabel} sebesar Rp {$formattedTotal} untuk {$processedCount} tagihan berhasil diproses.");
+            return redirect()->back()
+                ->with('success', "Pembayaran {$methodLabel} sebesar Rp {$formattedTotal} untuk {$processedCount} tagihan berhasil diproses.")
+                ->with('last_transaction_ref', $transactionRef);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -408,47 +411,50 @@ class PaymentController extends Controller
         ]);
 
         $mahasiswa = $payment->mahasiswa;
-        $amountPaid = (int) ($payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount);
-        $terbilang = $this->terbilang($amountPaid);
+        $receiptData = $this->paymentService->getReceiptData($mahasiswa, $payment, request('ref'));
+        $receiptData['user'] = $user;
 
-        // Logo Base64 (mengutamakan kwitansi_logo.png yang diekstrak dari kwitansi.pdf, fallback logo.PNG)
-        $logoPath = public_path('kwitansi_logo.png');
-        if (! file_exists($logoPath)) {
-            $logoPath = public_path('logo.PNG');
+        $pdf = Pdf::loadView('admin.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
+
+        $filename = 'Kwitansi_'.str_replace('/', '_', $receiptData['nomorBukti'] ?? $payment->invoice_number).'.pdf';
+
+        if (request()->has('download')) {
+            return $pdf->download($filename);
         }
-        $logoBase64 = file_exists($logoPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
-            : null;
 
-        // QR Code Base64
-        $qrPath = public_path('default_qr.png');
-        $qrBase64 = file_exists($qrPath)
-            ? 'data:image/png;base64,'.base64_encode(file_get_contents($qrPath))
-            : null;
+        return $pdf->stream($filename);
+    }
 
-        $tahunAkademik = $payment->tahunAkademik
-            ? $payment->tahunAkademik->tahun.' '.$payment->tahunAkademik->semester
-            : '2026 / 2027 Akhir';
+    public function transactionReceipt(string $reference)
+    {
+        $user = Auth::user();
 
-        $tanggalPembayaran = $payment->payment_date
-            ? $payment->payment_date->translatedFormat('d F Y')
-            : ($payment->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'));
+        $history = PaymentHistory::where('reference_number', $reference)
+            ->with(['payment.mahasiswa.user', 'payment.mahasiswa.prodi.fakultas'])
+            ->first();
 
-        $tanggalCetak = now()->translatedFormat('d F Y');
+        if (! $history) {
+            $payment = StudentPayment::where('invoice_number', $reference)
+                ->orWhere('midtrans_order_id', $reference)
+                ->with(['mahasiswa.user', 'mahasiswa.prodi.fakultas'])
+                ->first();
 
-        $pdf = Pdf::loadView('admin.payments.receipt', compact(
-            'payment',
-            'mahasiswa',
-            'user',
-            'terbilang',
-            'logoBase64',
-            'qrBase64',
-            'tahunAkademik',
-            'tanggalPembayaran',
-            'tanggalCetak'
-        ))->setPaper('a5', 'landscape');
+            if (! $payment) {
+                abort(404, 'Transaksi pembayaran tidak ditemukan.');
+            }
 
-        $filename = 'Kwitansi_'.str_replace('/', '_', $payment->invoice_number).'.pdf';
+            return $this->receipt($payment);
+        }
+
+        $payment = $history->payment;
+        $this->paymentService->authorizePaymentAccess($payment, $user);
+        $mahasiswa = $payment->mahasiswa;
+
+        $receiptData = $this->paymentService->getReceiptData($mahasiswa, null, $reference);
+        $receiptData['user'] = $user;
+
+        $pdf = Pdf::loadView('admin.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
+        $filename = 'Kwitansi_'.str_replace('/', '_', $reference).'.pdf';
 
         if (request()->has('download')) {
             return $pdf->download($filename);

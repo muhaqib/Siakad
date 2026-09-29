@@ -18,6 +18,7 @@ class PaymentHistory extends Model
         'old_status',
         'new_status',
         'amount',
+        'reference_number',
         'notes',
         'performed_by',
     ];

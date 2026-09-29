@@ -7,6 +7,7 @@ use App\Models\TahunAkademik;
 use App\Models\User;
 use App\Services\PaymentAccessService;
 use App\Services\PaymentInitializationService;
+use App\Services\PaymentService;
 use Database\Seeders\PaymentTypeSeeder;
 use Database\Seeders\RolePermissionSeeder;
 
@@ -285,7 +286,7 @@ it('rejects cash pay if bill id belongs to a different student', function () {
     ]);
     app(PaymentInitializationService::class)->initializeStudentPayments($otherMahasiswa);
 
-    $otherPayment = app(\App\Services\PaymentAccessService::class)->getOrderedPayments($otherMahasiswa)->first();
+    $otherPayment = app(PaymentAccessService::class)->getOrderedPayments($otherMahasiswa)->first();
 
     // Try to submit the other student's bill ID on this student's cash-pay route
     $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
@@ -303,7 +304,7 @@ it('rejects cash pay if bill id belongs to a different student', function () {
 });
 
 it('shows payment method column in the riwayat section of student cashier page', function () {
-    $payments = app(\App\Services\PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
     $regPayment = $payments->first();
 
     // Process a transfer payment
@@ -318,4 +319,68 @@ it('shows payment method column in the riwayat section of student cashier page',
     $response->assertSuccessful();
     $response->assertSee('METODE');
     $response->assertSee('Transfer');
+});
+
+it('prints transaction receipt with multiple bills when paying 2 bills at once', function () {
+    $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $regPayment = $payments->first(); // 1925000
+    $sem1Payment = $payments->skip(1)->first(); // 2500000
+
+    $refNumber = 'CASH-MULTI-TEST123';
+
+    // Pay registration full and sem 1 partial
+    $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'payment_method' => 'Tunai',
+        'reference_number' => $refNumber,
+        'bills' => [
+            ['id' => $regPayment->id, 'amount' => 1925000],
+            ['id' => $sem1Payment->id, 'amount' => 500000],
+        ],
+    ]);
+
+    // Admin downloads transaction receipt
+    $receiptResponse = $this->actingAs($this->admin)->get(route('admin.payments.transactions.receipt', $refNumber));
+    $receiptResponse->assertSuccessful();
+    $receiptResponse->assertHeader('content-type', 'application/pdf');
+
+    // Mahasiswa also can download the transaction receipt
+    $mhsResponse = $this->actingAs($this->user)->get(route('mahasiswa.payments.transactions.receipt', $refNumber));
+    $mhsResponse->assertSuccessful();
+    $mhsResponse->assertHeader('content-type', 'application/pdf');
+
+    // Verify receipt data contains both items and correct total (1925000 + 500000 = 2425000)
+    $data = app(PaymentService::class)->getReceiptData($this->mahasiswa, null, $refNumber);
+    expect($data['items'])->toHaveCount(2);
+    expect($data['totalPaid'])->toEqual(2425000);
+    expect($data['nomorBukti'])->toBe($refNumber);
+});
+
+it('ensures small nominal installment still gets a valid kwitansi', function () {
+    $payments = app(PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $regPayment = $payments->first();
+
+    $smallAmount = 50000; // Small nominal: Rp 50.000
+    $refNumber = 'CASH-SMALL-50K';
+
+    $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'payment_method' => 'Tunai',
+        'reference_number' => $refNumber,
+        'bills' => [
+            ['id' => $regPayment->id, 'amount' => $smallAmount],
+        ],
+    ]);
+
+    // Verify receipt can be downloaded for this small payment
+    $receiptResponse = $this->actingAs($this->admin)->get(route('admin.payments.transactions.receipt', $refNumber));
+    $receiptResponse->assertSuccessful();
+    $receiptResponse->assertHeader('content-type', 'application/pdf');
+
+    $receiptData = app(PaymentService::class)->getReceiptData($this->mahasiswa, null, $refNumber);
+    expect($receiptData['items'])->toHaveCount(1);
+    expect($receiptData['totalPaid'])->toEqual(50000);
+    expect($receiptData['items'][0]['paid_amount'])->toEqual(50000);
+    expect($receiptData['items'][0]['status'])->toBe('CICILAN');
+    expect($receiptData['terbilang'])->toContain('Lima Puluh Ribu');
 });

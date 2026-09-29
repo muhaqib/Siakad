@@ -237,6 +237,24 @@
                         </div>
                     </div>
 
+                    @if(session('last_transaction_ref'))
+                        <div class="mb-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-emerald-900 dark:text-emerald-200">Transaksi Berhasil Diproses</h4>
+                                    <p class="text-[11px] text-emerald-700 dark:text-emerald-300 font-mono">Ref: {{ session('last_transaction_ref') }}</p>
+                                </div>
+                            </div>
+                            <a href="{{ route('admin.payments.transactions.receipt', session('last_transaction_ref')) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                <span>Cetak Kwitansi</span>
+                            </a>
+                        </div>
+                    @endif
+
                     {{-- Form Pembayaran Tunai & Transfer --}}
                     <form action="{{ route('admin.payments.student.cash-pay', $mahasiswa->id) }}" method="POST" class="space-y-4">
                         @csrf
@@ -463,15 +481,20 @@
                                     <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition">
                                         <td class="py-3 text-gray-400 font-medium">{{ $index + 1 }}</td>
                                         <td class="py-3">
-                                            <div class="font-semibold text-siakad-dark dark:text-white">
-                                                {{ $trx->paymentType->name }}
+                                            <div class="font-semibold text-siakad-dark dark:text-white flex items-center gap-1.5">
+                                                <span>{{ $trx->description }}</span>
+                                                @if(($trx->items_count ?? 1) > 1)
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                                                        {{ $trx->items_count }} Tagihan
+                                                    </span>
+                                                @endif
                                             </div>
                                             <div class="text-[10px] font-mono text-gray-400">
-                                                {{ $trx->invoice_number }}
+                                                {{ $trx->reference_number ?? $trx->invoice_number }}
                                             </div>
                                         </td>
                                         <td class="py-3 font-bold text-siakad-dark dark:text-white font-mono whitespace-nowrap">
-                                            Rp {{ number_format($trx->paid_amount > 0 ? $trx->paid_amount : $trx->amount, 0, ',', '.') }}
+                                            Rp {{ number_format($trx->total_amount ?? ($trx->paid_amount > 0 ? $trx->paid_amount : $trx->amount), 0, ',', '.') }}
                                         </td>
                                         <td class="py-3 whitespace-nowrap">
                                             @php
@@ -496,14 +519,17 @@
                                             @endif
                                         </td>
                                         <td class="py-3 text-gray-500 dark:text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                                            {{ $trx->payment_date ? $trx->payment_date->format('d/m/Y') : ($trx->confirmed_at ? $trx->confirmed_at->format('d/m/Y') : $trx->updated_at->format('d/m/Y')) }}
+                                            @php
+                                                $trxDate = $trx->payment_date ? ($trx->payment_date instanceof \Carbon\Carbon ? $trx->payment_date : \Carbon\Carbon::parse($trx->payment_date)) : ($trx->confirmed_at ? ($trx->confirmed_at instanceof \Carbon\Carbon ? $trx->confirmed_at : \Carbon\Carbon::parse($trx->confirmed_at)) : null);
+                                            @endphp
+                                            {{ $trxDate ? $trxDate->format('d/m/Y') : '-' }}
                                         </td>
                                         <td class="py-3 whitespace-nowrap">
-                                            @if($trx->isPaid())
+                                            @if(($trx->is_paid ?? false) || ($trx->status ?? '') === 'paid')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">
                                                     Lunas
                                                 </span>
-                                            @elseif($trx->status === 'pending')
+                                            @elseif(($trx->status ?? '') === 'pending')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
                                                     Pending
                                                 </span>
@@ -514,23 +540,27 @@
                                             @endif
                                         </td>
                                         <td class="py-3 text-right whitespace-nowrap">
-                                            {{-- Kwitansi button is accessible for any payment with paid_amount > 0 or status partial / paid --}}
-                                            @if($trx->isPaid() || (float)$trx->paid_amount > 0 || $trx->status === 'partial')
-                                                <a href="{{ route('admin.payments.receipt', $trx->id) }}" target="_blank" class="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300 transition hover:bg-emerald-500/20" title="Cetak Kwitansi">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                                                    </svg>
-                                                    <span>Kwitansi</span>
+                                            @php
+                                                $receiptUrl = !empty($trx->reference_number)
+                                                    ? route('admin.payments.transactions.receipt', $trx->reference_number)
+                                                    : route('admin.payments.receipt', $trx->first_payment_id ?? $trx->id);
+                                            @endphp
+                                            <a href="{{ $receiptUrl }}" target="_blank" class="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-300 transition hover:bg-emerald-500/20" title="Cetak Kwitansi Transaksi">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                                </svg>
+                                                <span>Kwitansi</span>
+                                            </a>
+                                            @if(!empty($trx->first_payment_id ?? $trx->id))
+                                                <a href="{{ route('admin.payments.show', $trx->first_payment_id ?? $trx->id) }}" class="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1 text-[11px] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition ml-1" title="Rincian Transaksi">
+                                                    <span>Detail</span>
                                                 </a>
                                             @endif
-                                            <a href="{{ route('admin.payments.show', $trx->id) }}" class="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1 text-[11px] text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition ml-1" title="Rincian Transaksi">
-                                                <span>Detail</span>
-                                            </a>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="py-6 text-center text-xs text-gray-400 italic">
+                                        <td colspan="7" class="py-6 text-center text-xs text-gray-400 italic">
                                             Belum ada pembayaran yang disetor oleh mahasiswa ini.
                                         </td>
                                     </tr>

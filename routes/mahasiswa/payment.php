@@ -8,6 +8,7 @@ Route::middleware(['auth', 'role:mahasiswa'])->prefix('mahasiswa')->name('mahasi
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/{payment}', [PaymentController::class, 'show'])->name('payments.show');
     Route::get('/payments/{payment}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    Route::get('/payments/transactions/{reference}/receipt', [PaymentController::class, 'transactionReceipt'])->name('payments.transactions.receipt');
 
     // --- Midtrans Snap ---
     // Generate Snap Token (dipanggil via fetch/AJAX saat klik tombol bayar)

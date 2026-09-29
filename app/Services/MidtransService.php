@@ -340,6 +340,7 @@ class MidtransService
                         'old_status' => $oldStatus,
                         'new_status' => $finalStatus,
                         'amount' => $allocatedAmount,
+                        'reference_number' => $orderId,
                         'notes' => sprintf(
                             'Notifikasi Midtrans: %s | %s: Rp %s | Metode: %s | Order: %s',
                             strtoupper($transactionStatus),

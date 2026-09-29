@@ -253,21 +253,34 @@
                                 @forelse($recentTransactions as $index => $trx)
                                     <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition">
                                         <td class="py-3 text-gray-400 font-medium">{{ $index + 1 }}</td>
-                                        <td class="py-3 font-semibold text-siakad-dark dark:text-white">
-                                            {{ $trx->paymentType->name }}
+                                        <td class="py-3">
+                                            <div class="font-semibold text-siakad-dark dark:text-white flex items-center gap-1.5">
+                                                <span>{{ $trx->description }}</span>
+                                                @if(($trx->items_count ?? 1) > 1)
+                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                                                        {{ $trx->items_count }} Tagihan
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="text-[10px] font-mono text-gray-400">
+                                                {{ $trx->reference_number ?? $trx->invoice_number }}
+                                            </div>
                                         </td>
                                         <td class="py-3 font-bold text-siakad-dark dark:text-white font-mono whitespace-nowrap">
-                                            Rp {{ number_format($trx->paid_amount > 0 ? $trx->paid_amount : $trx->amount, 0, ',', '.') }}
+                                            Rp {{ number_format($trx->total_amount ?? ($trx->paid_amount > 0 ? $trx->paid_amount : $trx->amount), 0, ',', '.') }}
                                         </td>
                                         <td class="py-3 text-gray-500 dark:text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                                            {{ $trx->payment_date ? $trx->payment_date->format('d/m/Y') : ($trx->confirmed_at ? $trx->confirmed_at->format('d/m/Y') : $trx->updated_at->format('d/m/Y')) }}
+                                            @php
+                                                $trxDate = $trx->payment_date ? ($trx->payment_date instanceof \Carbon\Carbon ? $trx->payment_date : \Carbon\Carbon::parse($trx->payment_date)) : ($trx->confirmed_at ? ($trx->confirmed_at instanceof \Carbon\Carbon ? $trx->confirmed_at : \Carbon\Carbon::parse($trx->confirmed_at)) : null);
+                                            @endphp
+                                            {{ $trxDate ? $trxDate->format('d/m/Y') : '-' }}
                                         </td>
                                         <td class="py-3 whitespace-nowrap">
-                                            @if($trx->isPaid())
+                                            @if(($trx->is_paid ?? false) || ($trx->status ?? '') === 'paid')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">
                                                     Terverifikasi
                                                 </span>
-                                            @elseif($trx->status === 'pending')
+                                            @elseif(($trx->status ?? '') === 'pending')
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
                                                     Menunggu Pembayaran
                                                 </span>
@@ -278,14 +291,20 @@
                                             @endif
                                         </td>
                                         <td class="py-3 text-right whitespace-nowrap">
-                                            @if($trx->isPaid() || (float)$trx->paid_amount > 0 || $trx->status === 'partial')
-                                                <a href="{{ route('mahasiswa.payments.receipt', $trx->id) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-siakad-primary/20 bg-siakad-primary/5 px-2 py-1 text-[11px] font-semibold text-siakad-primary dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300 transition hover:bg-siakad-primary/10 hover:border-siakad-primary/30" title="Download Kwitansi">
+                                            @php
+                                                $receiptUrl = !empty($trx->reference_number)
+                                                    ? route('mahasiswa.payments.transactions.receipt', $trx->reference_number)
+                                                    : route('mahasiswa.payments.receipt', $trx->first_payment_id ?? $trx->id);
+                                            @endphp
+                                            @if(($trx->is_paid ?? false) || (float)($trx->total_amount ?? 0) > 0 || ($trx->status ?? '') === 'paid' || ($trx->status ?? '') === 'partial')
+                                                <a href="{{ $receiptUrl }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-siakad-primary/20 bg-siakad-primary/5 px-2 py-1 text-[11px] font-semibold text-siakad-primary dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-300 transition hover:bg-siakad-primary/10 hover:border-siakad-primary/30" title="Download Kwitansi">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17.5V18a2 2 0 002 2h12a2 2 0 002-2v-.5"/>
                                                     </svg>
+                                                    <span>Kwitansi</span>
                                                 </a>
-                                            @else
-                                                <a href="{{ route('mahasiswa.payments.show', $trx->id) }}" class="text-siakad-secondary dark:text-gray-400 hover:underline text-[11px]">
+                                            @elseif(!empty($trx->first_payment_id ?? $trx->id))
+                                                <a href="{{ route('mahasiswa.payments.show', $trx->first_payment_id ?? $trx->id) }}" class="text-siakad-secondary dark:text-gray-400 hover:underline text-[11px]">
                                                     Rincian
                                                 </a>
                                             @endif

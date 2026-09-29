@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Kwitansi Pembayaran - {{ $payment->invoice_number }}</title>
+    <title>Kwitansi Pembayaran - {{ $nomorBukti ?? ($payment?->invoice_number ?? '') }}</title>
     <style>
         @page {
             size: a5 landscape;
@@ -165,13 +165,13 @@
     <table class="meta-table">
         <tr>
             <td style="width: 14%;">Nomor Bukti</td>
-            <td style="width: 38%;">: <strong>{{ $payment->invoice_number }}</strong></td>
+            <td style="width: 38%;">: <strong>{{ $nomorBukti ?? ($payment?->invoice_number ?? '-') }}</strong></td>
             <td style="width: 10%;">NIM</td>
             <td style="width: 38%;">: <strong>{{ $mahasiswa->nim }}</strong></td>
         </tr>
         <tr>
             <td>Tanggal</td>
-            <td>: {{ $tanggalPembayaran ?? ($payment->payment_date ? $payment->payment_date->translatedFormat('d F Y') : ($payment->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'))) }}</td>
+            <td>: {{ $tanggalPembayaran ?? ($payment?->payment_date ? $payment->payment_date->translatedFormat('d F Y') : ($payment?->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'))) }}</td>
             <td>Nama</td>
             <td>: <strong>{{ strtoupper($mahasiswa->user->name) }}</strong></td>
         </tr>
@@ -182,6 +182,21 @@
             <td>: {{ $mahasiswa->angkatan ?? '-' }}</td>
         </tr>
     </table>
+
+    @php
+        $receiptItems = $items ?? [
+            [
+                'name' => $payment->paymentType->name,
+                'amount' => $payment->amount,
+                'paid_amount' => $payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount,
+                'notes' => $payment->notes && !str_starts_with($payment->notes, 'Kewajiban') ? $payment->notes : '-',
+                'remaining_amount' => $payment->remaining_amount,
+                'status' => $payment->isPaid() ? 'LUNAS' : strtoupper($payment->status),
+            ]
+        ];
+        $totalDibayarkan = $totalPaid ?? ($payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount);
+        $totalKekurangan = $totalRemaining ?? ($payment ? $payment->remaining_amount : 0);
+    @endphp
 
     <!-- Tabel Rincian Pembayaran -->
     <table class="items-table">
@@ -196,15 +211,28 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td style="text-align: center;">1</td>
-                <td>{{ strtoupper($payment->paymentType->name) }} (Rp {{ number_format($payment->amount, 0, ',', '.') }})</td>
-                <td style="text-align: right;">{{ number_format($payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount, 0, ',', '.') }}</td>
-                <td style="text-align: center;">{{ $payment->notes && !str_starts_with($payment->notes, 'Kewajiban') ? $payment->notes : '-' }}</td>
-                <td style="text-align: right;">{{ number_format($payment->remaining_amount, 0, ',', '.') }}</td>
-                <td style="text-align: center; font-weight: bold;">{{ strtoupper($payment->isPaid() ? 'LUNAS' : $payment->status) }}</td>
-            </tr>
+            @foreach($receiptItems as $index => $item)
+                <tr>
+                    <td style="text-align: center;">{{ $index + 1 }}</td>
+                    <td>{{ strtoupper($item['name']) }} (Rp {{ number_format($item['amount'], 0, ',', '.') }})</td>
+                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['paid_amount'], 0, ',', '.') }}</td>
+                    <td style="text-align: center;">{{ !empty($item['notes']) && !str_starts_with($item['notes'], 'Kewajiban') ? $item['notes'] : '-' }}</td>
+                    <td style="text-align: right;">{{ number_format($item['remaining_amount'], 0, ',', '.') }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ strtoupper($item['status']) }}</td>
+                </tr>
+            @endforeach
         </tbody>
+        @if(count($receiptItems) > 1)
+            <tfoot>
+                <tr style="background-color: #f5f5f5; font-weight: bold;">
+                    <td colspan="2" style="text-align: right; font-weight: bold; padding: 4px 5px;">TOTAL:</td>
+                    <td style="text-align: right; font-weight: bold; padding: 4px 5px;">{{ number_format($totalDibayarkan, 0, ',', '.') }}</td>
+                    <td></td>
+                    <td style="text-align: right; font-weight: bold; padding: 4px 5px;">{{ number_format($totalKekurangan, 0, ',', '.') }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        @endif
     </table>
 
     <!-- Terbilang -->
@@ -231,7 +259,7 @@
                     </tr>
                     <tr>
                         <td style="border: none; padding: 0 0 2px 0;">
-                            <span class="sig-name">{{ $payment->confirmedBy?->name ?? 'Muhammad Ziidan Amani' }}</span>
+                            <span class="sig-name">{{ $confirmedByName ?? ($payment?->confirmedBy?->name ?? 'Muhammad Ziidan Amani') }}</span>
                         </td>
                     </tr>
                     <tr>

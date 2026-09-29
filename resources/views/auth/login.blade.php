@@ -1,7 +1,7 @@
 <x-guest-layout>
     <div class="mb-10">
-        <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Welcome back</h2>
-        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Please enter your details to sign in.</p>
+        <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Selamat Datang</h2>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Silahkan masukkan data anda untuk login.</p>
     </div>
 
     <!-- Session Status -->

@@ -8,7 +8,9 @@ use App\Models\PaymentHistory;
 use App\Models\StudentPayment;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class PaymentService
@@ -77,6 +79,10 @@ class PaymentService
             $paymentMethod = $data['payment_method'] ?? 'Tunai';
             $paymentDate = $data['payment_date'] ?? now()->toDateString();
             $referenceNumber = $data['reference_number'] ?? null;
+            if (! $referenceNumber) {
+                $prefix = $paymentMethod === 'Transfer' ? 'TRF-' : 'CASH-';
+                $referenceNumber = $prefix.now()->format('Ymd').'-'.strtoupper(Str::random(6));
+            }
             $notes = $data['notes'] ?? $payment->notes;
 
             if ($referenceNumber) {
@@ -105,6 +111,7 @@ class PaymentService
                 'old_status' => $oldStatus,
                 'new_status' => $newStatus,
                 'amount' => $thisPaymentAmount,
+                'reference_number' => $referenceNumber,
                 'notes' => $historyNote,
                 'performed_by' => $actor->id,
             ]);
@@ -385,5 +392,284 @@ class PaymentService
         }
 
         return $totalCreated;
+    }
+
+    /**
+     * Ambil riwayat transaksi pembayaran mahasiswa yang dikelompokkan per transaksi.
+     */
+    public function getTransactionHistory(Mahasiswa $mahasiswa): Collection
+    {
+        $histories = PaymentHistory::whereHas('payment', fn ($q) => $q->where('mahasiswa_id', $mahasiswa->id))
+            ->whereIn('action', ['confirmed', 'partial_payment', 'midtrans_settlement', 'midtrans_partial_settlement'])
+            ->with([
+                'payment.paymentType',
+                'payment.tahunAkademik',
+                'performer',
+            ])
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $grouped = $histories->groupBy(function ($h) {
+            return ! empty($h->reference_number)
+                ? $h->reference_number
+                : ('HIST-'.$h->id);
+        });
+
+        $transactions = $grouped->map(function ($items, $ref) {
+            $first = $items->first();
+            $payment = $first->payment;
+            $totalAmount = (float) $items->sum('amount');
+            $date = $payment?->payment_date ?? $first->created_at;
+
+            $itemsDetail = $items->map(function ($h) {
+                return (object) [
+                    'history_id' => $h->id,
+                    'payment_id' => $h->student_payment_id,
+                    'name' => $h->payment?->paymentType?->name ?? 'Pembayaran',
+                    'semester' => $h->payment?->paymentType?->semester,
+                    'invoice_number' => $h->payment?->invoice_number,
+                    'amount_paid' => (float) $h->amount,
+                    'total_obligation' => (float) ($h->payment?->amount ?? 0),
+                    'remaining_amount' => (float) ($h->payment?->remaining_amount ?? 0),
+                    'is_paid' => $h->payment?->isPaid() ?? false,
+                    'status' => $h->payment?->status ?? 'unpaid',
+                    'notes' => $h->notes,
+                ];
+            });
+
+            $allPaid = $items->every(fn ($h) => $h->payment && $h->payment->isPaid());
+            $hasMultiple = $items->count() > 1;
+
+            if ($hasMultiple) {
+                $names = $items->map(fn ($h) => $h->payment?->paymentType?->name)->filter()->unique()->values();
+                $description = $items->count().' Tagihan ('.$names->implode(', ').')';
+            } else {
+                $description = $items->first()?->payment?->paymentType?->name ?? 'Pembayaran';
+            }
+
+            return (object) [
+                'id' => $first->student_payment_id,
+                'reference_number' => $ref,
+                'invoice_number' => $items->count() === 1 ? ($payment?->invoice_number ?? $ref) : $ref,
+                'description' => $description,
+                'total_amount' => $totalAmount,
+                'paid_amount' => $totalAmount,
+                'amount' => $totalAmount,
+                'payment_method' => $payment?->payment_method ?? 'Tunai',
+                'payment_date' => $date,
+                'created_at' => $first->created_at,
+                'confirmed_at' => $first->created_at,
+                'confirmed_by' => $first->performer?->name ?? 'Kasir / Admin',
+                'is_paid' => $allPaid,
+                'status' => $allPaid ? 'paid' : 'partial',
+                'items_count' => $items->count(),
+                'items' => $itemsDetail,
+                'first_payment_id' => $payment?->id,
+            ];
+        })->values();
+
+        // Fallback untuk payment yang sudah terbayar tapi belum tercatat di PaymentHistory (misal seeder lama)
+        $existingPaymentIds = $histories->pluck('student_payment_id')->unique()->all();
+        $fallbackPayments = StudentPayment::where('mahasiswa_id', $mahasiswa->id)
+            ->where(fn ($q) => $q->where('status', 'paid')->orWhere('paid_amount', '>', 0))
+            ->whereNotIn('id', $existingPaymentIds)
+            ->with(['paymentType', 'confirmedBy'])
+            ->get();
+
+        foreach ($fallbackPayments as $fp) {
+            $paidAmt = (float) ($fp->paid_amount > 0 ? $fp->paid_amount : $fp->amount);
+            $transactions->push((object) [
+                'id' => $fp->id,
+                'reference_number' => $fp->invoice_number,
+                'invoice_number' => $fp->invoice_number,
+                'description' => $fp->paymentType?->name ?? 'Pembayaran',
+                'total_amount' => $paidAmt,
+                'paid_amount' => $paidAmt,
+                'amount' => $paidAmt,
+                'payment_method' => $fp->payment_method ?? 'Tunai',
+                'payment_date' => $fp->payment_date ?? $fp->confirmed_at ?? $fp->updated_at,
+                'created_at' => $fp->confirmed_at ?? $fp->updated_at,
+                'confirmed_at' => $fp->confirmed_at ?? $fp->updated_at,
+                'confirmed_by' => $fp->confirmedBy?->name ?? 'Kasir / Admin',
+                'is_paid' => $fp->isPaid(),
+                'status' => $fp->status,
+                'items_count' => 1,
+                'items' => collect([(object) [
+                    'history_id' => null,
+                    'payment_id' => $fp->id,
+                    'name' => $fp->paymentType?->name ?? 'Pembayaran',
+                    'semester' => $fp->paymentType?->semester,
+                    'invoice_number' => $fp->invoice_number,
+                    'amount_paid' => $paidAmt,
+                    'total_obligation' => (float) $fp->amount,
+                    'remaining_amount' => (float) $fp->remaining_amount,
+                    'is_paid' => $fp->isPaid(),
+                    'status' => $fp->status,
+                    'notes' => $fp->notes,
+                ]]),
+                'first_payment_id' => $fp->id,
+            ]);
+        }
+
+        return $transactions->sortByDesc('created_at')->values();
+    }
+
+    /**
+     * Susun data kwitansi berdasarkan referensi transaksi atau spesifik StudentPayment.
+     */
+    public function getReceiptData(Mahasiswa $mahasiswa, ?StudentPayment $payment = null, ?string $referenceNumber = null): array
+    {
+        $histories = collect();
+
+        if ($referenceNumber) {
+            $histories = PaymentHistory::where('reference_number', $referenceNumber)
+                ->whereHas('payment', fn ($q) => $q->where('mahasiswa_id', $mahasiswa->id))
+                ->whereIn('action', ['confirmed', 'partial_payment', 'midtrans_settlement', 'midtrans_partial_settlement'])
+                ->with(['payment.paymentType', 'payment.tahunAkademik', 'performer'])
+                ->get();
+        }
+
+        if ($histories->isEmpty() && $payment) {
+            $latestHist = $payment->histories()
+                ->whereIn('action', ['confirmed', 'partial_payment', 'midtrans_settlement', 'midtrans_partial_settlement'])
+                ->latest()
+                ->first();
+
+            if ($latestHist && ! empty($latestHist->reference_number)) {
+                $histories = PaymentHistory::where('reference_number', $latestHist->reference_number)
+                    ->whereHas('payment', fn ($q) => $q->where('mahasiswa_id', $mahasiswa->id))
+                    ->whereIn('action', ['confirmed', 'partial_payment', 'midtrans_settlement', 'midtrans_partial_settlement'])
+                    ->with(['payment.paymentType', 'payment.tahunAkademik', 'performer'])
+                    ->get();
+            }
+        }
+
+        $items = [];
+        $totalPaidNow = 0;
+        $totalRemaining = 0;
+        $nomorBukti = $referenceNumber;
+        $confirmedBy = null;
+        $tanggalPembayaran = null;
+        $tahunAkademik = null;
+
+        if ($histories->isNotEmpty()) {
+            $first = $histories->first();
+            $nomorBukti = $first->reference_number ?: ($first->payment?->invoice_number ?? 'KWT-'.now()->format('YmdHis'));
+            $confirmedBy = $first->performer ?? $first->payment?->confirmedBy;
+            $tanggalPembayaran = $first->payment?->payment_date
+                ? $first->payment->payment_date->translatedFormat('d F Y')
+                : ($first->created_at ? $first->created_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'));
+
+            $tahunAkademikModel = $first->payment?->tahunAkademik;
+            $tahunAkademik = $tahunAkademikModel
+                ? $tahunAkademikModel->tahun.' '.$tahunAkademikModel->semester
+                : '2026 / 2027 Akhir';
+
+            foreach ($histories as $h) {
+                $p = $h->payment;
+                $paidNow = (float) $h->amount;
+                $rem = max(0, (float) ($p?->amount ?? 0) - (float) ($p?->paid_amount ?? 0));
+                $items[] = [
+                    'name' => $p?->paymentType?->name ?? 'Pembayaran',
+                    'amount' => (float) ($p?->amount ?? 0),
+                    'paid_amount' => $paidNow,
+                    'notes' => $h->notes && ! str_starts_with($h->notes, 'Kewajiban') ? $h->notes : '-',
+                    'remaining_amount' => $rem,
+                    'status' => $p?->isPaid() ? 'LUNAS' : ($p?->status === 'partial' ? 'CICILAN' : strtoupper($p?->status ?? 'UNPAID')),
+                ];
+                $totalPaidNow += $paidNow;
+                $totalRemaining += $rem;
+            }
+        } elseif ($payment) {
+            $nomorBukti = $payment->invoice_number;
+            $confirmedBy = $payment->confirmedBy;
+            $tanggalPembayaran = $payment->payment_date
+                ? $payment->payment_date->translatedFormat('d F Y')
+                : ($payment->confirmed_at ? $payment->confirmed_at->translatedFormat('d F Y') : now()->translatedFormat('d F Y'));
+
+            $tahunAkademik = $payment->tahunAkademik
+                ? $payment->tahunAkademik->tahun.' '.$payment->tahunAkademik->semester
+                : '2026 / 2027 Akhir';
+
+            $paidNow = (float) ($payment->paid_amount > 0 ? $payment->paid_amount : $payment->amount);
+            $items[] = [
+                'name' => $payment->paymentType?->name ?? 'Pembayaran',
+                'amount' => (float) $payment->amount,
+                'paid_amount' => $paidNow,
+                'notes' => $payment->notes && ! str_starts_with($payment->notes, 'Kewajiban') ? $payment->notes : '-',
+                'remaining_amount' => (float) $payment->remaining_amount,
+                'status' => $payment->isPaid() ? 'LUNAS' : strtoupper($payment->status),
+            ];
+            $totalPaidNow = $paidNow;
+            $totalRemaining = (float) $payment->remaining_amount;
+        }
+
+        $terbilang = $this->terbilang((int) $totalPaidNow);
+
+        // Logo Base64
+        $logoPath = public_path('kwitansi_logo.png');
+        if (! file_exists($logoPath)) {
+            $logoPath = public_path('logo.PNG');
+        }
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+
+        // QR Code Base64
+        $qrPath = public_path('default_qr.png');
+        $qrBase64 = file_exists($qrPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($qrPath))
+            : null;
+
+        return [
+            'mahasiswa' => $mahasiswa,
+            'payment' => $payment,
+            'nomorBukti' => $nomorBukti,
+            'items' => $items,
+            'totalPaid' => $totalPaidNow,
+            'totalRemaining' => $totalRemaining,
+            'terbilang' => $terbilang,
+            'logoBase64' => $logoBase64,
+            'qrBase64' => $qrBase64,
+            'tahunAkademik' => $tahunAkademik,
+            'tanggalPembayaran' => $tanggalPembayaran,
+            'tanggalCetak' => now()->translatedFormat('d F Y'),
+            'confirmedByName' => $confirmedBy?->name ?? 'Muhammad Ziidan Amani',
+        ];
+    }
+
+    /**
+     * Konversi angka nominal rupiah menjadi teks terbilang bahasa Indonesia.
+     */
+    public function terbilang(int $angka): string
+    {
+        $angka = abs($angka);
+        $baca = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+        $hasil = '';
+
+        if ($angka < 12) {
+            $hasil = ' '.$baca[$angka];
+        } elseif ($angka < 20) {
+            $hasil = $this->terbilang($angka - 10).' Belas';
+        } elseif ($angka < 100) {
+            $hasil = $this->terbilang((int) ($angka / 10)).' Puluh '.$this->terbilang($angka % 10);
+        } elseif ($angka < 200) {
+            $hasil = ' Seratus '.$this->terbilang($angka - 100);
+        } elseif ($angka < 1000) {
+            $hasil = $this->terbilang((int) ($angka / 100)).' Ratus '.$this->terbilang($angka % 100);
+        } elseif ($angka < 2000) {
+            $hasil = ' Seribu '.$this->terbilang($angka - 1000);
+        } elseif ($angka < 1000000) {
+            $hasil = $this->terbilang((int) ($angka / 1000)).' Ribu '.$this->terbilang($angka % 1000);
+        } elseif ($angka < 1000000000) {
+            $hasil = $this->terbilang((int) ($angka / 1000000)).' Juta '.$this->terbilang($angka % 1000000);
+        } elseif ($angka < 1000000000000) {
+            $hasil = $this->terbilang((int) ($angka / 1000000000)).' Miliar '.$this->terbilang((int) fmod($angka, 1000000000));
+        } else {
+            $hasil = 'Angka terlalu besar';
+        }
+
+        return trim($hasil);
     }
 }

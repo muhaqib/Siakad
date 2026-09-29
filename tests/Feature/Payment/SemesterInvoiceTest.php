@@ -58,12 +58,24 @@ it('defaults to active semester invoice when semester parameter is omitted', fun
     expect($response->headers->get('content-type'))->toContain('application/pdf');
 });
 
-it('resolves student using user_id via route model binding', function () {
+it('resolves student correctly using mahasiswa id via route model binding', function () {
+    // Must use mahasiswa->id, NOT user->id — using user_id in the URL caused wrong student to load
     $response = $this->actingAs($this->admin)
-        ->get(route('admin.payments.student', $this->user->id));
+        ->get(route('admin.payments.student', $this->mahasiswa->id));
 
     $response->assertSuccessful();
     $response->assertSee($this->mahasiswa->nim);
+});
+
+it('does not confuse mahasiswa when accessed by correct mahasiswa id', function () {
+    // Bug fix verification: the correct student's data must be shown when accessing via mahasiswa->id.
+    // Previously, orWhere('user_id') caused wrong student to appear if user_id matched another mahasiswa's id.
+    $response = $this->actingAs($this->admin)
+        ->get(route('admin.payments.student', $this->mahasiswa->id));
+
+    $response->assertSuccessful();
+    $response->assertSee($this->mahasiswa->nim);
+    $response->assertSee($this->user->name);
 });
 
 it('marks months as paid when installments are partially paid', function () {

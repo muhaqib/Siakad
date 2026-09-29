@@ -85,16 +85,12 @@ class Mahasiswa extends Model
 
     /**
      * Retrieve the model for a bound value.
-     * Supports lookup by Mahasiswa ID or User ID.
-     *
-     * @param  mixed  $value
-     * @param  string|null  $field
-     * @return Model|null
+     * Uses the default primary key lookup (id) only.
+     * The previous `orWhere('user_id', $value)` fallback caused incorrect student
+     * to be resolved when the route parameter matched another student's user_id.
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where($field ?? $this->getRouteKeyName(), $value)
-            ->orWhere('user_id', $value)
-            ->first();
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
     }
 }

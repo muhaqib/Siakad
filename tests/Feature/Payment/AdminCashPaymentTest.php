@@ -272,3 +272,50 @@ it('automatically unlocks KRS when semester payment meets minimum threshold', fu
     $pageResponse->assertSuccessful();
     $pageResponse->assertSee('KRS Terbuka');
 });
+
+it('rejects cash pay if bill id belongs to a different student', function () {
+    // Create a second student with their own payments
+    $otherUser = User::factory()->create(['role' => 'mahasiswa']);
+    $otherMahasiswa = Mahasiswa::create([
+        'user_id' => $otherUser->id,
+        'nim' => '202401099',
+        'prodi_id' => $this->prodi->id,
+        'angkatan' => 2024,
+        'status' => 'aktif',
+    ]);
+    app(PaymentInitializationService::class)->initializeStudentPayments($otherMahasiswa);
+
+    $otherPayment = app(\App\Services\PaymentAccessService::class)->getOrderedPayments($otherMahasiswa)->first();
+
+    // Try to submit the other student's bill ID on this student's cash-pay route
+    $response = $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'bills' => [
+            [
+                'id' => $otherPayment->id,
+                'amount' => 100000,
+            ],
+        ],
+    ]);
+
+    // Should fail validation because the bill does not belong to $this->mahasiswa
+    $response->assertSessionHasErrors(['bills.0.id']);
+});
+
+it('shows payment method column in the riwayat section of student cashier page', function () {
+    $payments = app(\App\Services\PaymentAccessService::class)->getOrderedPayments($this->mahasiswa);
+    $regPayment = $payments->first();
+
+    // Process a transfer payment
+    $this->actingAs($this->admin)->post(route('admin.payments.student.cash-pay', $this->mahasiswa->id), [
+        'payment_date' => now()->format('Y-m-d'),
+        'payment_method' => 'Transfer',
+        'reference_number' => 'TRF-TEST-001',
+        'bills' => [['id' => $regPayment->id, 'amount' => 100000]],
+    ]);
+
+    $response = $this->actingAs($this->admin)->get(route('admin.payments.student', $this->mahasiswa->id));
+    $response->assertSuccessful();
+    $response->assertSee('METODE');
+    $response->assertSee('Transfer');
+});

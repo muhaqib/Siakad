@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
@@ -256,13 +257,18 @@ class PaymentController extends Controller
         $user = Auth::user();
         $this->paymentService->authorizeStudentAccess($mahasiswa, $user);
 
+        $mahasiswaId = $mahasiswa->id;
+
         $validated = $request->validate([
             'payment_date' => 'required|date',
             'payment_method' => 'nullable|in:Tunai,Transfer',
             'notes' => 'nullable|string|max:500',
             'reference_number' => 'nullable|string|max:100',
             'bills' => 'required|array|min:1',
-            'bills.*.id' => 'required|exists:student_payments,id',
+            'bills.*.id' => [
+                'required',
+                Rule::exists('student_payments', 'id')->where('mahasiswa_id', $mahasiswaId),
+            ],
             'bills.*.amount' => 'required|numeric|min:0',
         ]);
 

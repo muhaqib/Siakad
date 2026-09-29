@@ -452,6 +452,7 @@
                                     <th class="pb-2.5 font-semibold w-8">NO</th>
                                     <th class="pb-2.5 font-semibold">KETERANGAN</th>
                                     <th class="pb-2.5 font-semibold">DIBAYAR</th>
+                                    <th class="pb-2.5 font-semibold whitespace-nowrap">METODE</th>
                                     <th class="pb-2.5 font-semibold whitespace-nowrap">TGL</th>
                                     <th class="pb-2.5 font-semibold whitespace-nowrap">STATUS</th>
                                     <th class="pb-2.5 font-semibold text-right">AKSI</th>
@@ -471,6 +472,28 @@
                                         </td>
                                         <td class="py-3 font-bold text-siakad-dark dark:text-white font-mono whitespace-nowrap">
                                             Rp {{ number_format($trx->paid_amount > 0 ? $trx->paid_amount : $trx->amount, 0, ',', '.') }}
+                                        </td>
+                                        <td class="py-3 whitespace-nowrap">
+                                            @php
+                                                $method = $trx->payment_method;
+                                            @endphp
+                                            @if($method === 'Transfer')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
+                                                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                                    Transfer
+                                                </span>
+                                            @elseif($method === 'Tunai')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">
+                                                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                                    Tunai
+                                                </span>
+                                            @elseif($method)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                    {{ $method }}
+                                                </span>
+                                            @else
+                                                <span class="text-[10px] text-gray-400 dark:text-gray-500">-</span>
+                                            @endif
                                         </td>
                                         <td class="py-3 text-gray-500 dark:text-gray-400 font-mono text-[11px] whitespace-nowrap">
                                             {{ $trx->payment_date ? $trx->payment_date->format('d/m/Y') : ($trx->confirmed_at ? $trx->confirmed_at->format('d/m/Y') : $trx->updated_at->format('d/m/Y')) }}

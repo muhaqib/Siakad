@@ -30,8 +30,8 @@
             text-align: left;
         }
         .logo-img {
-            width: 45px;
-            height: 52px;
+            width: 48px;
+            height: 55px;
         }
         .header-text {
             padding-left: 6px;

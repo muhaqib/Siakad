@@ -255,12 +255,9 @@
                                         <td class="py-3 text-gray-400 font-medium">{{ $index + 1 }}</td>
                                         <td class="py-3">
                                             <div class="font-semibold text-siakad-dark dark:text-white flex items-center gap-1.5">
-                                                <span>{{ $trx->description }}</span>
-                                                @if(($trx->items_count ?? 1) > 1)
-                                                    <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
-                                                        {{ $trx->items_count }} Tagihan
-                                                    </span>
-                                                @endif
+                                                <span title="{{ $trx->description }}">
+                                                    {{ mb_strlen($trx->description) > 30 ? mb_substr($trx->description, 0, 30) . '...' : $trx->description }}
+                                                </span>
                                             </div>
                                             <div class="text-[10px] font-mono text-gray-400">
                                                 {{ $trx->reference_number ?? $trx->invoice_number }}
@@ -301,7 +298,6 @@
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17.5V18a2 2 0 002 2h12a2 2 0 002-2v-.5"/>
                                                     </svg>
-                                                    <span>Kwitansi</span>
                                                 </a>
                                             @elseif(!empty($trx->first_payment_id ?? $trx->id))
                                                 <a href="{{ route('mahasiswa.payments.show', $trx->first_payment_id ?? $trx->id) }}" class="text-siakad-secondary dark:text-gray-400 hover:underline text-[11px]">

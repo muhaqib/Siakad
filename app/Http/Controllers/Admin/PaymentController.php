@@ -595,8 +595,37 @@ class PaymentController extends Controller
             return response()->stream($callback, 200, $headers);
         }
 
-        // Printable HTML view
-        return view('admin.payments.export', compact('payments', 'user'));
+        // PDF: only show records that have been paid (paid_amount > 0), sorted by payment_date desc
+        $payments = StudentPayment::with([
+            'mahasiswa.user',
+            'mahasiswa.prodi',
+            'paymentType',
+            'confirmedBy',
+        ])
+            ->when($fakultasId, fn ($q) => $q->forFakultas($fakultasId))
+            ->when($request->get('prodi_id'), fn ($q, $v) => $q->whereHas('mahasiswa', fn ($sq) => $sq->where('prodi_id', $v)))
+            ->when($request->get('angkatan'), fn ($q, $v) => $q->whereHas('mahasiswa', fn ($sq) => $sq->where('angkatan', $v)))
+            ->when($request->get('payment_type_id'), fn ($q, $v) => $q->where('payment_type_id', $v))
+            ->where('paid_amount', '>', 0)
+            ->orderBy('payment_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Logo Base64 for DomPDF rendering
+        $logoPath = public_path('kwitansi_logo.png');
+        if (! file_exists($logoPath)) {
+            $logoPath = public_path('logo.PNG');
+        }
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath))
+            : null;
+
+        $pdf = Pdf::loadView('admin.payments.export', compact('payments', 'user', 'logoBase64'))
+            ->setPaper('a4', 'portrait');
+
+        $filename = 'Riwayat-Pembayaran-'.date('Ymd').'.pdf';
+
+        return $pdf->stream($filename);
     }
 
     /**

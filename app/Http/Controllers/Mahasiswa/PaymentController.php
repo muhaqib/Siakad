@@ -89,7 +89,7 @@ class PaymentController extends Controller
 
         $receiptData = $this->paymentService->getReceiptData($mahasiswa, $payment, request('ref'));
 
-        $pdf = Pdf::loadView('mahasiswa.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
+        $pdf = Pdf::loadView('admin.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
 
         $filename = 'Kwitansi_'.str_replace('/', '_', $receiptData['nomorBukti'] ?? $payment->invoice_number).'.pdf';
 
@@ -127,7 +127,7 @@ class PaymentController extends Controller
 
         $receiptData = $this->paymentService->getReceiptData($mahasiswa, null, $reference);
 
-        $pdf = Pdf::loadView('mahasiswa.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
+        $pdf = Pdf::loadView('admin.payments.receipt', $receiptData)->setPaper('a5', 'landscape');
         $filename = 'Kwitansi_'.str_replace('/', '_', $reference).'.pdf';
 
         if (request()->has('download')) {

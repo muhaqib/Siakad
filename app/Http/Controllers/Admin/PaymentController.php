@@ -34,12 +34,9 @@ class PaymentController extends Controller
     {
         $user = Auth::user();
         $fakultasId = $user->isSuperAdmin() ? $request->get('fakultas_id') : $user->fakultas_id;
+        $tahunAktif = TahunAkademik::where('is_active', true)->first();
 
-        $query = Mahasiswa::with([
-            'user',
-            'prodi.fakultas',
-            'payments.paymentType',
-        ]);
+        $query = Mahasiswa::query();
 
         if ($fakultasId) {
             $query->whereHas('prodi', fn ($q) => $q->where('fakultas_id', $fakultasId));
@@ -56,17 +53,6 @@ class PaymentController extends Controller
             });
         }
 
-        // Status Filter
-        $status = $request->get('status');
-        if ($status === 'unpaid' || $status === 'debt') {
-            $query->whereHas('payments', fn ($q) => $q->whereIn('status', ['unpaid', 'partial']));
-        } elseif ($status === 'partial') {
-            $query->whereHas('payments', fn ($q) => $q->where('status', 'partial'));
-        } elseif ($status === 'paid') {
-            $query->whereDoesntHave('payments', fn ($q) => $q->whereIn('status', ['unpaid', 'partial']))
-                ->whereHas('payments');
-        }
-
         if ($prodiId = $request->get('prodi_id')) {
             $query->where('prodi_id', $prodiId);
         }
@@ -75,27 +61,87 @@ class PaymentController extends Controller
             $query->where('angkatan', $angkatan);
         }
 
-        $mahasiswaList = $query->orderBy('nim', 'asc')
-            ->paginate(15)
-            ->withQueryString();
+        // Hitung statistik status & kelompokkan ID berdasarkan semester yang sedang berjalan
+        $allStudents = (clone $query)->with(['payments.paymentType'])->get();
 
-        // Calculate summary and next payment for each student
-        $mahasiswaList->getCollection()->transform(function ($m) {
+        $statusStats = [
+            'all' => $allStudents->count(),
+            'debt' => 0,
+            'partial' => 0,
+            'paid' => 0,
+        ];
+
+        $debtStudentIds = [];
+        $partialStudentIds = [];
+        $paidStudentIds = [];
+
+        foreach ($allStudents as $m) {
             if ($m->payments->isEmpty()) {
-                $this->initializationService->initializeStudentPayments($m);
+                $this->initializationService->initializeStudentPayments($m, $tahunAktif);
                 $m->load('payments.paymentType');
             }
 
-            $totalKewajiban = (float) $m->payments->sum('amount');
-            $totalDibayar = (float) $m->payments->sum('paid_amount');
-            $sisaTunggakan = max(0, $totalKewajiban - $totalDibayar);
-            $persenLunas = $totalKewajiban > 0 ? min(100, (int) round(($totalDibayar / $totalKewajiban) * 100)) : 0;
-            $unpaidCount = $m->payments->whereIn('status', ['unpaid', 'partial'])->count();
-            $partialCount = $m->payments->where('status', 'partial')->count();
-            $paidCount = $m->payments->where('status', 'paid')->count();
-            $nextPayment = $this->paymentAccessService->getNextPaymentToPay($m);
+            $activeSemester = $this->paymentAccessService->determineStudentSemester($m, $tahunAktif);
 
-            $activeSemester = $this->paymentAccessService->determineStudentSemester($m);
+            $semPayments = $m->payments->filter(function ($p) use ($activeSemester) {
+                if (! $p->paymentType) {
+                    return false;
+                }
+                if ($p->paymentType->category === 'semester' && (int) $p->paymentType->semester === (int) $activeSemester) {
+                    return true;
+                }
+                if ((int) $activeSemester === 1 && in_array($p->paymentType->category, ['registration', 'registrasi'])) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            $kewajibanSem = (float) $semPayments->sum('amount');
+            $dibayarSem = (float) $semPayments->sum('paid_amount');
+            $tunggakanSem = max(0, $kewajibanSem - $dibayarSem);
+
+            if ($kewajibanSem > 0 && $tunggakanSem <= 0) {
+                $statusStats['paid']++;
+                $paidStudentIds[] = $m->id;
+            } elseif ($dibayarSem > 0 && $tunggakanSem > 0) {
+                $statusStats['partial']++;
+                $partialStudentIds[] = $m->id;
+                $statusStats['debt']++;
+                $debtStudentIds[] = $m->id;
+            } else {
+                $statusStats['debt']++;
+                $debtStudentIds[] = $m->id;
+            }
+        }
+
+        // Filter berdasarkan status semester berjalan
+        $status = $request->get('status');
+        if ($status === 'unpaid' || $status === 'debt') {
+            $query->whereIn('id', $debtStudentIds);
+        } elseif ($status === 'partial') {
+            $query->whereIn('id', $partialStudentIds);
+        } elseif ($status === 'paid') {
+            $query->whereIn('id', $paidStudentIds);
+        }
+
+        $mahasiswaList = $query->with([
+            'user',
+            'prodi.fakultas',
+            'payments.paymentType',
+        ])
+            ->orderBy('nim', 'asc')
+            ->paginate(15)
+            ->withQueryString();
+
+        // Calculate summary and semester data for each student
+        $mahasiswaList->getCollection()->transform(function ($m) use ($tahunAktif) {
+            if ($m->payments->isEmpty()) {
+                $this->initializationService->initializeStudentPayments($m, $tahunAktif);
+                $m->load('payments.paymentType');
+            }
+
+            $activeSemester = $this->paymentAccessService->determineStudentSemester($m, $tahunAktif);
             $semesterIniPayments = $m->payments->filter(function ($p) use ($activeSemester) {
                 if (! $p->paymentType) {
                     return false;
@@ -103,24 +149,43 @@ class PaymentController extends Controller
                 if ($p->paymentType->category === 'semester' && (int) $p->paymentType->semester === (int) $activeSemester) {
                     return true;
                 }
-                if ((int) $activeSemester === 1 && $p->paymentType->category === 'registration') {
+                if ((int) $activeSemester === 1 && in_array($p->paymentType->category, ['registration', 'registrasi'])) {
                     return true;
                 }
 
                 return false;
             });
-            $tunggakanSemesterIni = (float) $semesterIniPayments->sum('remaining_amount');
+
+            $kewajibanSem = (float) $semesterIniPayments->sum('amount');
+            $dibayarSem = (float) $semesterIniPayments->sum('paid_amount');
+            $tunggakanSem = max(0, $kewajibanSem - $dibayarSem);
+            $persenLunasSem = $kewajibanSem > 0 ? min(100, (int) round(($dibayarSem / $kewajibanSem) * 100)) : 0;
+
+            $totalKewajiban = (float) $m->payments->sum('amount');
+            $totalDibayar = (float) $m->payments->sum('paid_amount');
+            $sisaTunggakan = max(0, $totalKewajiban - $totalDibayar);
+            $persenLunas = $totalKewajiban > 0 ? min(100, (int) round(($totalDibayar / $totalKewajiban) * 100)) : 0;
+
+            if ($kewajibanSem > 0 && $tunggakanSem <= 0) {
+                $semesterStatus = 'paid';
+            } elseif ($dibayarSem > 0 && $tunggakanSem > 0) {
+                $semesterStatus = 'partial';
+            } else {
+                $semesterStatus = 'unpaid';
+            }
 
             $m->active_semester = $activeSemester;
-            $m->tunggakan_semester_ini = $tunggakanSemesterIni;
+            $m->kewajiban_semester_ini = $kewajibanSem;
+            $m->dibayar_semester_ini = $dibayarSem;
+            $m->tunggakan_semester_ini = $tunggakanSem;
+            $m->persen_lunas_semester_ini = $persenLunasSem;
+            $m->semester_status = $semesterStatus;
+
             $m->total_kewajiban = $totalKewajiban;
             $m->total_dibayar = $totalDibayar;
             $m->sisa_tunggakan = $sisaTunggakan;
             $m->persen_lunas = $persenLunas;
-            $m->unpaid_count = $unpaidCount;
-            $m->partial_count = $partialCount;
-            $m->paid_count = $paidCount;
-            $m->next_payment = $nextPayment;
+            $m->next_payment = $this->paymentAccessService->getNextPaymentToPay($m);
 
             return $m;
         });
@@ -139,7 +204,9 @@ class PaymentController extends Controller
             'fakultasList',
             'prodiList',
             'angkatanList',
-            'user'
+            'user',
+            'statusStats',
+            'tahunAktif'
         ));
     }
 
@@ -308,8 +375,8 @@ class PaymentController extends Controller
                 }
 
                 $defaultNote = $paymentMethod === 'Transfer'
-                    ? 'Pembayaran Transfer'
-                    : 'Pembayaran Tunai';
+                    ? 'Transfer'
+                    : 'Tunai';
 
                 $payNotes = ! empty($validated['notes'] ?? null)
                     ? $validated['notes']

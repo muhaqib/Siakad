@@ -486,18 +486,16 @@
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                         <span class="sidebar-text">Daftar Pembayaran</span>
                     </a>
-                    <a href="{{ url('admin/payments?status=unpaid') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request('status') === 'unpaid' ? 'active' : '' }}">
+                    <a href="{{ url('admin/payments?status=unpaid') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request('status') === 'unpaid' || request('status') === 'debt' ? 'active' : '' }}">
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <span class="sidebar-text">Belum Lunas</span>
                         @php 
-                            $unpaidQuery = \App\Models\StudentPayment::where('status', 'unpaid');
-                            if (Auth::user()->role === 'admin_fakultas' && Auth::user()->fakultas_id) {
-                                $unpaidQuery->forFakultas(Auth::user()->fakultas_id);
-                            }
-                            $unpaidCount = $unpaidQuery->count(); 
+                            $unpaidCount = app(\App\Services\PaymentAccessService::class)->countDebtStudents(
+                                Auth::user()->role === 'admin_fakultas' ? Auth::user()->fakultas_id : null
+                            );
                         @endphp
                         @if($unpaidCount > 0)
-                        <span class="ml-auto px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">{{ $unpaidCount }}</span>
+                        <span class="ml-auto px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded-full">{{ $unpaidCount }}</span>
                         @endif
                     </a>
                     @if(Auth::user()->isSuperAdmin())

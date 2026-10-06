@@ -302,7 +302,7 @@
     <!-- Garis panduan potong kertas kwitansi (21,59 cm x 11 cm) -->
     <div class="cut-guide">
         <div class="cut-line"></div>
-        <div class="cut-text"><span style="font-family: DejaVu Sans, sans-serif;">&#9986;</span> Garis Potong Kwitansi (21,59 cm x 11 cm)</div>
+        <div class="cut-text"><span style="font-family: DejaVu Sans, sans-serif;">&#9986;</span></div>
     </div>
 </body>
 </html>

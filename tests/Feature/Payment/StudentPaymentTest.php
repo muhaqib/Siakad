@@ -499,3 +499,40 @@ test('dashboard accurately counts partial payments and shows weekly trend with c
     $exportCsvResponse->assertSuccessful();
     $exportCsvResponse->assertHeader('content-type', 'text/csv; charset=UTF-8');
 });
+
+test('admin payments index displays and filters data for active semester', function () {
+    $service = app(PaymentInitializationService::class);
+    $service->initializeStudentPayments($this->mahasiswaA, $this->tahunAktif);
+    $service->initializeStudentPayments($this->mahasiswaB, $this->tahunAktif);
+
+    // Mahasiswa A pays active semester obligations (Registration + Semester 1)
+    // Note: Future semesters (2-8) remain unpaid
+    $mhsAReg = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('category', 'registration'))->first();
+    $mhsASem1 = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('semester', 1))->first();
+
+    $mhsAReg->update(['status' => 'paid', 'paid_amount' => $mhsAReg->amount]);
+    $mhsASem1->update(['status' => 'paid', 'paid_amount' => $mhsASem1->amount]);
+
+    // Admin Fakultas A views payments index
+    $response = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.index'));
+    $response->assertSuccessful();
+
+    // Check header and active semester indicator
+    $response->assertSee('Daftar Pembayaran Mahasiswa');
+    $response->assertSee('Semester Berjalan');
+    $response->assertSee('Tagihan Semester Ini');
+    $response->assertSee('Dibayar Semester Ini');
+    $response->assertSee('Tunggakan Semester Ini');
+    $response->assertSee('Lunas Semester Ini');
+
+    // Mahasiswa A should be counted as paid for semester ini
+    // Tab "Lunas Semester Ini"
+    $responsePaid = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.index', ['status' => 'paid']));
+    $responsePaid->assertSuccessful();
+    $responsePaid->assertSee($this->mahasiswaA->nim);
+
+    // Filter "debt" should NOT include Mahasiswa A because their active semester is fully paid
+    $responseDebt = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.index', ['status' => 'debt']));
+    $responseDebt->assertSuccessful();
+    $responseDebt->assertDontSee($this->mahasiswaA->nim);
+});

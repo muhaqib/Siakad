@@ -11,31 +11,43 @@
             </h1>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('admin.payments.export') }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm">
+            <a href="{{ route('admin.payments.export', request()->query()) }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                 <svg class="w-4 h-4 text-siakad-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 <span>Ekspor Rekap</span>
             </a>
         </div>
     </div>
 
-    <!-- Status Filter Tabs -->
+    <!-- Status Filter Tabs (Semester Berjalan) -->
     <div class="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center gap-1 border-b border-siakad-light dark:border-gray-700 overflow-x-auto w-full md:w-auto">
             <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => ''])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap {{ !request('status') || request('status') === 'all' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                Semua Mahasiswa
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ !request('status') || request('status') === 'all' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Semua Mahasiswa</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ !request('status') || request('status') === 'all' ? 'bg-siakad-primary/10 text-siakad-primary dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['all'] ?? 0 }}
+                </span>
             </a>
             <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'debt'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                Ada Tunggakan / Belum Lunas
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Belum Bayar</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['debt'] ?? 0 }}
+                </span>
             </a>
             <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'partial'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap {{ request('status') === 'partial' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                Sedang Mencicil
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'partial' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Sedang Mencicil</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['partial'] ?? 0 }}
+                </span>
             </a>
             <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'paid'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap {{ request('status') === 'paid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                Lunas Seluruhnya
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'paid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Lunas Semester Ini</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['paid'] ?? 0 }}
+                </span>
             </a>
         </div>
     </div>
@@ -53,7 +65,7 @@
                     <label class="block text-xs font-semibold text-siakad-secondary dark:text-gray-400 mb-1">Cari Mahasiswa (NIM / Nama / Email)</label>
                     <div class="relative">
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Ketik nama mahasiswa atau NIM..."
-                               class="input-saas w-full pl-9 pr-4 py-2 text-sm">
+                                class="input-saas w-full pl-9 pr-4 py-2 text-sm">
                         <svg class="w-4 h-4 text-siakad-secondary absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
                 </div>
@@ -114,9 +126,9 @@
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider text-center w-12">#</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Mahasiswa</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Program Studi</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Total Kewajiban</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Telah Dibayar</th>
-                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Tunggakan Semester Ini</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Tagihan</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Dibayar</th>
+                        <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Kekurangan</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider">Status Pembayaran</th>
                         <th class="py-3 px-4 text-xs font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider text-right">Aksi</th>
                     </tr>
@@ -138,8 +150,10 @@
                                     <div class="font-bold text-siakad-dark dark:text-white group-hover:text-siakad-primary transition flex items-center gap-1.5">
                                         <span>{{ $m->user->name ?? '-' }}</span>
                                     </div>
-                                    <div class="text-[11px] text-siakad-secondary font-mono">
-                                        NIM: {{ $m->nim }} &bull; Angkatan {{ $m->angkatan ?? '-' }}
+                                    <div class="text-[11px] text-siakad-secondary font-mono flex items-center gap-1.5 mt-0.5">
+                                        <span>{{ $m->nim }}</span>
+                                        <span>&bull;</span>
+                                        <span class="font-semibold text-blue-600 dark:text-blue-400">Sem {{ $m->active_semester }}</span>
                                     </div>
                                 </div>
                             </a>
@@ -151,43 +165,59 @@
                             <div class="text-[10px] text-siakad-secondary">{{ $m->prodi->fakultas->nama ?? '-' }}</div>
                         </td>
 
-                        <!-- Total Kewajiban -->
-                        <td class="px-4 py-3 font-semibold text-siakad-dark dark:text-white">
-                            Rp {{ number_format($m->total_kewajiban, 0, ',', '.') }}
+                        <!-- Tagihan Semester Ini -->
+                        <td class="px-4 py-3">
+                            <div class="font-semibold text-siakad-dark dark:text-white">
+                                Rp {{ number_format($m->kewajiban_semester_ini ?? 0, 0, ',', '.') }}
+                            </div>
+                            <div class="text-[10px] text-siakad-secondary">
+                                Semester {{ $m->active_semester }}{{ (int) $m->active_semester === 1 ? ' + Registrasi' : '' }}
+                            </div>
                         </td>
 
-                        <!-- Telah Dibayar & Persentase -->
+                        <!-- Telah Dibayar Semester Ini & Persentase -->
                         <td class="px-4 py-3">
                             <div class="font-bold text-emerald-600 dark:text-emerald-400">
-                                Rp {{ number_format($m->total_dibayar, 0, ',', '.') }}
+                                Rp {{ number_format($m->dibayar_semester_ini ?? 0, 0, ',', '.') }}
                             </div>
                             <div class="flex items-center gap-1.5 mt-1">
                                 <div class="flex-1 bg-siakad-light/60 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden w-20">
-                                    <div class="bg-emerald-500 h-1.5 rounded-full" style="width: {{ $m->persen_lunas }}%"></div>
+                                    <div class="bg-emerald-500 h-1.5 rounded-full" style="width: {{ $m->persen_lunas_semester_ini ?? 0 }}%"></div>
                                 </div>
-                                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{{ $m->persen_lunas }}%</span>
+                                <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{{ $m->persen_lunas_semester_ini ?? 0 }}%</span>
+                            </div>
+                            <div class="text-[10px] text-siakad-secondary mt-0.5" title="Total semua pembayaran yang pernah dibayarkan">
+                                Total Riwayat: Rp {{ number_format($m->total_dibayar ?? 0, 0, ',', '.') }}
                             </div>
                         </td>
 
                         <!-- Sisa Tunggakan Semester Ini -->
-                        <td class="px-4 py-3 font-bold {{ ($m->tunggakan_semester_ini ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500' }}">
-                            Rp {{ number_format($m->tunggakan_semester_ini ?? 0, 0, ',', '.') }}
+                        <td class="px-4 py-3">
+                            @if(($m->tunggakan_semester_ini ?? 0) <= 0)
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
+                                    Rp 0 (Lunas)
+                                </span>
+                            @else
+                                <span class="font-bold text-amber-600 dark:text-amber-400 text-xs">
+                                    Rp {{ number_format($m->tunggakan_semester_ini, 0, ',', '.') }}
+                                </span>
+                            @endif
                         </td>
 
-                        <!-- Status Ringkas Pembayaran -->
+                        <!-- Status Ringkas Pembayaran Semester Ini -->
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap items-center gap-1">
-                                @if(($m->tunggakan_semester_ini ?? 0) <= 0)
+                                @if(($m->semester_status ?? '') === 'paid')
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
                                         ✓ Lunas
                                     </span>
-                                @elseif($m->partial_count > 0)
+                                @elseif(($m->semester_status ?? '') === 'partial')
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                                         Cicilan
                                     </span>
                                 @else
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200">
-                                        {{ $m->unpaid_count }} Tagihan
+                                        Belum Bayar
                                     </span>
                                 @endif
 
@@ -207,12 +237,12 @@
                                    class="px-2.5 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 transition shadow-xs"
                                    title="Cetak Tagihan Semester Berjalan (PDF)">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                    <span>Print Tagihan</span>
+                                 
                                 </a>
                                 <a href="{{ route('admin.payments.student', $m->id) }}" 
                                    class="btn-primary-saas px-3 py-1.5 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 shadow-sm"
                                    title="Detail Tagihan">
-                                    <span>Detail Tagihan</span>
+                                    <span>Detail</span>
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                                 </a>
                             </div>

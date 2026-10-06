@@ -340,4 +340,48 @@ class PaymentAccessService
 
         return null;
     }
+
+    /**
+     * Get the count of students who have outstanding debt/arrears in the active semester.
+     */
+    public function countDebtStudents(?int $fakultasId = null): int
+    {
+        $tahunAktif = TahunAkademik::where('is_active', true)->first();
+
+        $query = Mahasiswa::query();
+        if ($fakultasId) {
+            $query->whereHas('prodi', fn ($q) => $q->where('fakultas_id', $fakultasId));
+        }
+
+        $students = $query->with(['payments.paymentType'])->get();
+        $count = 0;
+
+        foreach ($students as $m) {
+            $activeSemester = $this->determineStudentSemester($m, $tahunAktif);
+
+            $semPayments = $m->payments->filter(function ($p) use ($activeSemester) {
+                if (! $p->paymentType) {
+                    return false;
+                }
+                if ($p->paymentType->category === 'semester' && (int) $p->paymentType->semester === (int) $activeSemester) {
+                    return true;
+                }
+                if ((int) $activeSemester === 1 && in_array($p->paymentType->category, ['registration', 'registrasi'])) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            $kewajibanSem = (float) $semPayments->sum('amount');
+            $dibayarSem = (float) $semPayments->sum('paid_amount');
+            $tunggakanSem = max(0, $kewajibanSem - $dibayarSem);
+
+            if ($tunggakanSem > 0) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
 }

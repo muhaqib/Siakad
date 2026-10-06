@@ -625,12 +625,7 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
-                                            <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                                <span>Tagihan PDF</span>
-                                            </a>
-                                        @endif
+                                        
                                         <a href="{{ route('admin.payments.receipt', $p->id) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/40 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition" title="Cetak Kwitansi">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                             <span>Kwitansi</span>
@@ -660,9 +655,6 @@
                                                         <span class="text-[10px] px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold">Sem {{ $p->paymentType->semester }}</span>
                                                     @endif
                                                 </div>
-                                                <span class="text-[10px] font-semibold text-siakad-secondary dark:text-gray-400 uppercase tracking-wider block">
-                                                    {{ $p->status === 'partial' ? 'Sedang Dicicil' : 'Siap Bayar' }} &bull; Inv: {{ $p->invoice_number }}
-                                                </span>
                                                 <span class="text-xs font-bold text-siakad-dark dark:text-white mt-1 block">
                                                     SISA <strong class="text-sm font-black">Rp {{ number_format($p->remaining_amount, 0, ',', '.') }}</strong>
                                                     @if($p->paid_amount > 0)
@@ -673,12 +665,6 @@
                                         </div>
 
                                         <div class="flex items-center gap-2">
-                                            @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
-                                                <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                                    <span>Tagihan PDF</span>
-                                                </a>
-                                            @endif
                                             @if($p->paid_amount > 0)
                                                 <a href="{{ route('admin.payments.receipt', $p->id) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition" title="Cetak Kwitansi Setoran Sebagian">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -744,12 +730,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        @if($p->paymentType && $p->paymentType->category === 'semester' && $p->paymentType->semester)
-                                            <a href="{{ route('admin.payments.student.invoice', [$mahasiswa->id, $p->paymentType->semester]) }}" target="_blank" class="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/80 dark:bg-indigo-900/40 hover:bg-indigo-200 px-2.5 py-1 rounded-lg transition pointer-events-auto cursor-pointer" title="Cetak Tagihan Semester {{ $p->paymentType->semester }} (PDF)">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                                <span>Tagihan PDF</span>
-                                            </a>
-                                        @endif
                                         <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
                                             Terkunci
                                         </span>

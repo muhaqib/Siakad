@@ -36,33 +36,24 @@ class PaymentController extends Controller
         $fakultasId = $user->isSuperAdmin() ? $request->get('fakultas_id') : $user->fakultas_id;
         $tahunAktif = TahunAkademik::where('is_active', true)->first();
 
-        $query = Mahasiswa::query();
+        // 1. Base query untuk cakupan akademik (Fakultas, Prodi, Angkatan)
+        $baseQuery = Mahasiswa::query();
 
         if ($fakultasId) {
-            $query->whereHas('prodi', fn ($q) => $q->where('fakultas_id', $fakultasId));
-        }
-
-        // Search: NIM, Nama Mahasiswa, Email
-        if ($search = $request->get('search')) {
-            $query->where(function ($q) use ($search) {
-                $q->where('nim', 'like', "%{$search}%")
-                    ->orWhereHas('user', function ($uq) use ($search) {
-                        $uq->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
-                    });
-            });
+            $baseQuery->whereHas('prodi', fn ($q) => $q->where('fakultas_id', $fakultasId));
         }
 
         if ($prodiId = $request->get('prodi_id')) {
-            $query->where('prodi_id', $prodiId);
+            $baseQuery->where('prodi_id', $prodiId);
         }
 
         if ($angkatan = $request->get('angkatan')) {
-            $query->where('angkatan', $angkatan);
+            $baseQuery->where('angkatan', $angkatan);
         }
 
-        // Hitung statistik status & kelompokkan ID berdasarkan semester yang sedang berjalan
-        $allStudents = (clone $query)->with(['payments.paymentType'])->get();
+        // 2. Hitung statistik status & kelompokkan ID berdasarkan semester yang sedang berjalan
+        // Dihitung SEBELUM search agar badge counter di tab nav selalu menampilkan total yang benar
+        $allStudents = (clone $baseQuery)->with(['payments.paymentType'])->get();
 
         $statusStats = [
             'all' => $allStudents->count(),
@@ -115,6 +106,9 @@ class PaymentController extends Controller
             }
         }
 
+        // 3. Query untuk daftar mahasiswa yang ditampilkan
+        $query = clone $baseQuery;
+
         // Filter berdasarkan status semester berjalan
         $status = $request->get('status');
         if ($status === 'unpaid' || $status === 'debt') {
@@ -123,6 +117,17 @@ class PaymentController extends Controller
             $query->whereIn('id', $partialStudentIds);
         } elseif ($status === 'paid') {
             $query->whereIn('id', $paidStudentIds);
+        }
+
+        // Search: NIM, Nama Mahasiswa, Email (hanya memfilter data pada tab yang aktif)
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('nim', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
         }
 
         $mahasiswaList = $query->with([

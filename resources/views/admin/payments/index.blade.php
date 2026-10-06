@@ -3,12 +3,38 @@
         Daftar Pembayaran Mahasiswa
     </x-slot>
 
-    <!-- Page Title & Header Actions -->
-    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 class="text-xl font-bold text-siakad-dark dark:text-white">
-                Daftar Pembayaran Mahasiswa
-            </h1>
+    <!-- Status Filter Tabs (Semester Berjalan) -->
+    <div class="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-1 border-b border-siakad-light dark:border-gray-700 overflow-x-auto w-full md:w-auto">
+            <a href="{{ route('admin.payments.index', array_merge(request()->except(['status', 'search', 'page']), ['status' => ''])) }}" 
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ !request('status') || request('status') === 'all' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Semua Mahasiswa</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ !request('status') || request('status') === 'all' ? 'bg-siakad-primary/10 text-siakad-primary dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['all'] ?? 0 }}
+                </span>
+            </a>
+            <a href="{{ route('admin.payments.index', array_merge(request()->except(['status', 'search', 'page']), ['status' => 'debt'])) }}" 
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Belum Bayar</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['debt'] ?? 0 }}
+                </span>
+            </a>
+            <a href="{{ route('admin.payments.index', array_merge(request()->except(['status', 'search', 'page']), ['status' => 'partial'])) }}" 
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'partial' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Sedang Mencicil</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['partial'] ?? 0 }}
+                </span>
+            </a>
+            <a href="{{ route('admin.payments.index', array_merge(request()->except(['status', 'search', 'page']), ['status' => 'paid'])) }}" 
+               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'paid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
+                <span>Lunas Semester Ini</span>
+                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
+                    {{ $statusStats['paid'] ?? 0 }}
+                </span>
+            </a>
+            
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.payments.export', request()->query()) }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
@@ -17,40 +43,7 @@
             </a>
         </div>
     </div>
-
-    <!-- Status Filter Tabs (Semester Berjalan) -->
-    <div class="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-center gap-1 border-b border-siakad-light dark:border-gray-700 overflow-x-auto w-full md:w-auto">
-            <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => ''])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ !request('status') || request('status') === 'all' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                <span>Semua Mahasiswa</span>
-                <span class="px-2 py-0.5 text-xs rounded-full {{ !request('status') || request('status') === 'all' ? 'bg-siakad-primary/10 text-siakad-primary dark:bg-blue-900/40 dark:text-blue-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
-                    {{ $statusStats['all'] ?? 0 }}
-                </span>
-            </a>
-            <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'debt'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                <span>Belum Bayar</span>
-                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'debt' || request('status') === 'unpaid' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
-                    {{ $statusStats['debt'] ?? 0 }}
-                </span>
-            </a>
-            <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'partial'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'partial' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                <span>Sedang Mencicil</span>
-                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'partial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
-                    {{ $statusStats['partial'] ?? 0 }}
-                </span>
-            </a>
-            <a href="{{ route('admin.payments.index', array_merge(request()->except('status'), ['status' => 'paid'])) }}" 
-               class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 {{ request('status') === 'paid' ? 'text-siakad-primary dark:text-blue-400 border-siakad-primary dark:border-blue-400 font-bold' : 'text-siakad-secondary dark:text-gray-400 border-transparent hover:text-siakad-dark' }}">
-                <span>Lunas Semester Ini</span>
-                <span class="px-2 py-0.5 text-xs rounded-full {{ request('status') === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }}">
-                    {{ $statusStats['paid'] ?? 0 }}
-                </span>
-            </a>
-        </div>
-    </div>
+    
 
     <!-- Filter & Search Card -->
     <div class="card-saas p-4 mb-6 bg-white dark:bg-gray-800 shadow-sm">
@@ -63,10 +56,13 @@
                 <!-- Search Mahasiswa -->
                 <div class="md:col-span-5">
                     <label class="block text-xs font-semibold text-siakad-secondary dark:text-gray-400 mb-1">Cari Mahasiswa (NIM / Nama / Email)</label>
-                    <div class="relative">
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Ketik nama mahasiswa atau NIM..."
-                                class="input-saas w-full pl-9 pr-4 py-2 text-sm">
+                    <div class="relative" x-data="{ query: '{{ addslashes(request('search', '')) }}' }">
+                        <input type="text" name="search" x-model="query" id="studentSearchInput" value="{{ request('search') }}" placeholder="Ketik nama mahasiswa atau NIM..."
+                                class="input-saas w-full pl-9 pr-8 py-2 text-sm" autocomplete="off">
                         <svg class="w-4 h-4 text-siakad-secondary absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <button type="button" x-show="query && query.length > 0" @click="query = ''; $dispatch('clear-search')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" title="Hapus pencarian">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -135,7 +131,7 @@
                 </thead>
                 <tbody class="divide-y divide-siakad-light/60 dark:divide-gray-700/60 text-siakad-dark dark:text-gray-300">
                     @forelse($mahasiswaList as $index => $m)
-                    <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition">
+                    <tr class="hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition student-payment-row" data-search-text="{{ strtolower(($m->user->name ?? '') . ' ' . $m->nim . ' ' . ($m->prodi->nama ?? '')) }}">
                         <td class="px-4 py-3 text-center text-siakad-secondary font-mono">
                             {{ $mahasiswaList->firstItem() + $index }}
                         </td>
@@ -266,4 +262,53 @@
         </div>
         @endif
     </div>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('studentSearchInput');
+            const tableBody = document.querySelector('table.table-saas tbody');
+            if (!searchInput || !tableBody) return;
+
+            const rows = tableBody.querySelectorAll('tr.student-payment-row');
+
+            function filterRows() {
+                const query = searchInput.value.trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const text = (row.getAttribute('data-search-text') || row.textContent).toLowerCase();
+                    if (query === '' || text.includes(query)) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                let noResultRow = document.getElementById('clientNoResultRow');
+                if (visibleCount === 0 && rows.length > 0 && query !== '') {
+                    if (!noResultRow) {
+                        noResultRow = document.createElement('tr');
+                        noResultRow.id = 'clientNoResultRow';
+                        noResultRow.innerHTML = `<td colspan="8" class="text-center py-10 text-siakad-secondary dark:text-gray-400">
+                            <p class="font-medium text-sm">Tidak ditemukan data mahasiswa yang sesuai pencarian "${searchInput.value}".</p>
+                        </td>`;
+                        tableBody.appendChild(noResultRow);
+                    } else {
+                        noResultRow.style.display = '';
+                        noResultRow.querySelector('p').textContent = `Tidak ditemukan data mahasiswa yang sesuai pencarian "${searchInput.value}".`;
+                    }
+                } else if (noResultRow) {
+                    noResultRow.style.display = 'none';
+                }
+            }
+
+            searchInput.addEventListener('input', filterRows);
+            window.addEventListener('clear-search', function () {
+                setTimeout(filterRows, 50);
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

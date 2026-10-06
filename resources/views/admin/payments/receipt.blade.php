@@ -6,7 +6,7 @@
     <style>
         @page {
             size: a4 portrait;
-            margin: 0;
+            margin: 8mm 12mm 5mm 12mm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -18,14 +18,10 @@
             background-color: #fff;
         }
         .receipt-container {
-            width: 21.59cm;
-            max-width: 100%;
-            height: 11cm;
+            width: 100%;
             box-sizing: border-box;
-            padding: 5mm 8mm 3mm 8mm;
             position: relative;
             background-color: #fff;
-            overflow: hidden;
         }
         .header-table {
             width: 100%;
@@ -147,11 +143,8 @@
             color: #777;
         }
         .cut-guide {
-            width: 21.59cm;
-            max-width: 100%;
-            box-sizing: border-box;
-            padding: 0 8mm;
-            margin-top: 2px;
+            width: 100%;
+            margin-top: 15px;
         }
         .cut-line {
             border-top: 1px dashed #aaa;
@@ -226,12 +219,12 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th style="width: 38%;">Nama Pembayaran</th>
-                    <th style="width: 15%;">Dibayarkan (Rp.)</th>
-                    <th style="width: 20%;">Keterangan</th>
-                    <th style="width: 10%;">Sisa Tagihan</th>
-                    <th style="width: 12%;">Status</th>
+                    <th style="width: 2%;">No.</th>
+                    <th style="width: 30%;">Nama Pembayaran</th>
+                    <th style="width: 20%;">Dibayarkan (Rp.)</th>
+                    <th style="width: 15%;">Keterangan</th>
+                    <th style="width: 18%;">Sisa Tagihan</th>
+                    <th style="width: 15%;">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -309,7 +302,7 @@
     <!-- Garis panduan potong kertas kwitansi (21,59 cm x 11 cm) -->
     <div class="cut-guide">
         <div class="cut-line"></div>
-        <div class="cut-text">&#9986; Garis Potong Kwitansi (21,59 cm x 11 cm)</div>
+        <div class="cut-text"><span style="font-family: DejaVu Sans, sans-serif;">&#9986;</span> Garis Potong Kwitansi (21,59 cm x 11 cm)</div>
     </div>
 </body>
 </html>

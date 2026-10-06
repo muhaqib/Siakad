@@ -229,12 +229,44 @@
         $totalTagihan = $payments->sum('amount');
         $totalDibayar = $payments->sum('paid_amount');
 
-        $cashTotal     = $payments->filter(fn($p) => strtolower($p->payment_method ?? '') === 'tunai')->sum('paid_amount');
-        $transferTotal = $payments->filter(fn($p) => strtolower($p->payment_method ?? '') === 'transfer')->sum('paid_amount');
-        $vaTotal       = $payments->filter(fn($p) => in_array(strtolower($p->payment_method ?? ''), ['virtual account', 'va', 'midtrans']))->sum('paid_amount');
-        $cashCount     = $payments->filter(fn($p) => strtolower($p->payment_method ?? '') === 'tunai')->count();
-        $transferCount = $payments->filter(fn($p) => strtolower($p->payment_method ?? '') === 'transfer')->count();
-        $vaCount       = $payments->filter(fn($p) => in_array(strtolower($p->payment_method ?? ''), ['virtual account', 'va', 'midtrans']))->count();
+        $cashTotal = 0;
+        $transferTotal = 0;
+        $vaTotal = 0;
+        $cashCount = 0;
+        $transferCount = 0;
+        $vaCount = 0;
+
+        $isVaMidtransFn = function($p) {
+            $method = strtolower(trim($p->payment_method ?? ''));
+            return ! empty($p->midtrans_order_id)
+                || ! empty($p->midtrans_payment_type)
+                || str_contains($method, 'midtrans')
+                || str_contains($method, 'virtual account')
+                || in_array($method, ['va', 'qris', 'gopay', 'shopeepay'])
+                || str_contains($method, 'echannel')
+                || str_contains($method, 'mandiri bill');
+        };
+
+        $isTransferFn = function($p) use ($isVaMidtransFn) {
+            if ($isVaMidtransFn($p)) {
+                return false;
+            }
+            $method = strtolower(trim($p->payment_method ?? ''));
+            return str_contains($method, 'transfer') || in_array($method, ['bank', 'bank transfer', 'transfer bank', 'manual_transfer']);
+        };
+
+        foreach ($payments as $p) {
+            if ($isVaMidtransFn($p)) {
+                $vaTotal += (float) $p->paid_amount;
+                $vaCount++;
+            } elseif ($isTransferFn($p)) {
+                $transferTotal += (float) $p->paid_amount;
+                $transferCount++;
+            } else {
+                $cashTotal += (float) $p->paid_amount;
+                $cashCount++;
+            }
+        }
     @endphp
 
     <table class="meta-table">
@@ -267,8 +299,8 @@
             <tr>
                 <th>Total Dibayar</th>
                 <th>Cash / Tunai</th>
-                <th>Transfer Bank</th>
-                <th>Virtual Account</th>
+                <th>Transfer Bank (Manual)</th>
+                <th>VA / Midtrans (Online)</th>
             </tr>
         </thead>
         <tbody>
@@ -313,17 +345,14 @@
                     'cancelled' => 'BATAL',
                     default     => 'BELUM',
                 };
-                $methodLower = strtolower($p->payment_method ?? '');
-                if ($methodLower === 'tunai') {
-                    $methodLabel = 'Cash/Tunai';
-                } elseif ($methodLower === 'transfer') {
-                    $methodLabel = 'Transfer';
-                } elseif (in_array($methodLower, ['virtual account', 'va', 'midtrans'])) {
-                    $methodLabel = 'VA Midtrans';
-                } elseif ($methodLower === 'qris') {
-                    $methodLabel = 'QRIS';
+                if ($isVaMidtransFn($p)) {
+                    $methodLabel = ! empty($p->midtrans_payment_type)
+                        ? strtoupper($p->midtrans_payment_type).' (VA/Midtrans)'
+                        : ($p->payment_method ?: 'VA Midtrans');
+                } elseif ($isTransferFn($p)) {
+                    $methodLabel = 'Transfer Bank';
                 } else {
-                    $methodLabel = $p->payment_method ?? '-';
+                    $methodLabel = 'Cash/Tunai';
                 }
             @endphp
             <tr>

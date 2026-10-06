@@ -10,7 +10,7 @@
         </div>
         <div class="flex items-center gap-3 flex-wrap">
             <div class="flex items-center gap-2">
-            <a href="{{ route('admin.payments.export') }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm">
+            <a href="{{ route('admin.payments.export', request()->query()) }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                 <svg class="w-4 h-4 text-siakad-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 <span>Ekspor Rekap</span>
             </a>
@@ -94,7 +94,7 @@
         <div class="card-saas p-5 dark:bg-gray-800">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Total Sudah Lunas</p>
+                    <p class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Total Sudah Lunas / Terbayar</p>
                     <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">Rp {{ number_format($stats['total_nominal_lunas'], 0, ',', '.') }}</p>
                 </div>
                 <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -102,7 +102,12 @@
                 </div>
             </div>
             <div class="flex items-center justify-between mt-3 text-[11px] text-siakad-secondary dark:text-gray-400">
-                <span>{{ number_format($stats['total_lunas']) }} transaksi</span>
+                <span>
+                    {{ number_format($stats['total_lunas']) }} lunas
+                    @if(!empty($stats['total_cicilan']))
+                        &bull; {{ number_format($stats['total_cicilan']) }} cicilan
+                    @endif
+                </span>
                 @php
                     $pctLunas = $stats['total_tagihan'] > 0 ? round(($stats['total_lunas'] / $stats['total_tagihan']) * 100, 1) : 0;
                 @endphp
@@ -116,7 +121,7 @@
                 <div>
                     <p class="text-xs font-medium text-amber-600 dark:text-amber-400">Total Tunggakan</p>
                     <p class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                        Rp {{ number_format($semesterCompletion['total_nominal_tunggakan'], 0, ',', '.') }}</p>
+                        Rp {{ number_format($stats['total_tunggakan'], 0, ',', '.') }}</p>
                 </div>
                 <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -215,7 +220,8 @@
         </div>
 
         <!-- --------------------------------------------------------- -->
-        <!-- CHART 2 (7 Kolom): Tren Mingguan (Online vs Offline)      -->
+        <!-- --------------------------------------------------------- -->
+        <!-- CHART 2 (7 Kolom): Tren Mingguan (Cash / Transfer / VA)   -->
         <!-- --------------------------------------------------------- -->
         <div class="lg:col-span-7 card-saas p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-siakad-light/70 dark:border-gray-700">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -225,17 +231,21 @@
                         Tren Pembayaran Mingguan
                     </h3>
                     <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
-                        Frekuensi transaksi via Online &amp; Offline per minggu
+                        Frekuensi transaksi via Cash, Transfer Bank, dan VA / Midtrans
                     </p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-siakad-primary/10 text-siakad-primary dark:bg-blue-900/40 dark:text-blue-300 border border-siakad-primary/20">
-                        <span class="w-2 h-2 rounded-full bg-siakad-primary"></span>
-                        Online
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Cash ({{ number_format($weeklyPayments['summary']['total_cash_count']) }})
                     </span>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[#86c5e0]/20 text-siakad-secondary dark:bg-[#86c5e0]/10 dark:text-[#86c5e0] border border-[#86c5e0]/30">
-                        <span class="w-2 h-2 rounded-full bg-[#86c5e0]"></span>
-                        Offline
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        Transfer ({{ number_format($weeklyPayments['summary']['total_transfer_count']) }})
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                        VA/Midtrans ({{ number_format($weeklyPayments['summary']['total_va_count']) }})
                     </span>
                 </div>
             </div>
@@ -303,16 +313,19 @@
         }
 
         // =========================================================
-        // 2. Chart Tren Mingguan Pembayaran (Online vs Offline Bar)
+        // 2. Chart Tren Mingguan Pembayaran (Cash, Transfer, VA/Midtrans)
         // =========================================================
         const weeklyCtx = document.getElementById('weeklyPaymentChart');
         if (weeklyCtx) {
             const weeklyWeeks = @json($weeklyPayments['weeks']);
             const labels = weeklyWeeks.map(w => w.week_short + ' (' + w.date_range + ')');
-            const onlineData = weeklyWeeks.map(w => w.online_count);
-            const offlineData = weeklyWeeks.map(w => w.offline_count);
-            const onlineAmounts = weeklyWeeks.map(w => w.online_amount);
-            const offlineAmounts = weeklyWeeks.map(w => w.offline_amount);
+            const cashData = weeklyWeeks.map(w => w.cash_count);
+            const transferData = weeklyWeeks.map(w => w.transfer_count);
+            const vaData = weeklyWeeks.map(w => w.va_count);
+            const cashAmounts = weeklyWeeks.map(w => w.cash_amount);
+            const transferAmounts = weeklyWeeks.map(w => w.transfer_amount);
+            const vaAmounts = weeklyWeeks.map(w => w.va_amount);
+            const totalAmounts = weeklyWeeks.map(w => w.total_amount);
 
             new Chart(weeklyCtx.getContext('2d'), {
                 type: 'bar',
@@ -320,20 +333,28 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Online (Midtrans)',
-                            data: onlineData,
-                            backgroundColor: siakadPrimary,
+                            label: 'Cash (Tunai)',
+                            data: cashData,
+                            backgroundColor: '#10B981',
                             borderRadius: 6,
                             borderWidth: 0,
-                            maxBarThickness: 24,
+                            maxBarThickness: 18,
                         },
                         {
-                            label: 'Offline (Tunai / Kasir)',
-                            data: offlineData,
-                            backgroundColor: '#86c5e0',
+                            label: 'Transfer Bank',
+                            data: transferData,
+                            backgroundColor: '#3B82F6',
                             borderRadius: 6,
                             borderWidth: 0,
-                            maxBarThickness: 24,
+                            maxBarThickness: 18,
+                        },
+                        {
+                            label: 'VA / Midtrans',
+                            data: vaData,
+                            backgroundColor: '#8B5CF6',
+                            borderRadius: 6,
+                            borderWidth: 0,
+                            maxBarThickness: 18,
                         }
                     ]
                 },
@@ -373,9 +394,11 @@
                             callbacks: {
                                 footer: function(tooltipItems) {
                                     const idx = tooltipItems[0].dataIndex;
-                                    const onAmt = new Intl.NumberFormat('id-ID').format(onlineAmounts[idx] || 0);
-                                    const offAmt = new Intl.NumberFormat('id-ID').format(offlineAmounts[idx] || 0);
-                                    return `Nominal Online: Rp ${onAmt}\nNominal Offline: Rp ${offAmt}`;
+                                    const cashAmt = new Intl.NumberFormat('id-ID').format(cashAmounts[idx] || 0);
+                                    const trfAmt = new Intl.NumberFormat('id-ID').format(transferAmounts[idx] || 0);
+                                    const vaAmt = new Intl.NumberFormat('id-ID').format(vaAmounts[idx] || 0);
+                                    const totAmt = new Intl.NumberFormat('id-ID').format(totalAmounts[idx] || 0);
+                                    return `Nominal Cash: Rp ${cashAmt}\nNominal Transfer: Rp ${trfAmt}\nNominal VA/Midtrans: Rp ${vaAmt}\nTotal Minggu Ini: Rp ${totAmt}`;
                                 }
                             }
                         }

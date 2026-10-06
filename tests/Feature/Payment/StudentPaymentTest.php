@@ -404,3 +404,98 @@ test('admin can search mahasiswa by nim and name on payments index', function ()
     $emptySearchResponse->assertDontSee($this->mahasiswaA->nim);
     $emptySearchResponse->assertSee('Tidak ada data mahasiswa yang sesuai kriteria pencarian');
 });
+
+test('dashboard accurately counts partial payments and shows weekly trend with cash, transfer, and va midtrans', function () {
+    $service = app(PaymentInitializationService::class);
+    $service->initializeStudentPayments($this->mahasiswaA);
+
+    $regPayment = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('category', 'registration'))->first();
+    $sem1Payment = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('category', 'semester')->where('semester', 1))->first();
+    $sem2Payment = $this->mahasiswaA->payments()->whereHas('paymentType', fn ($q) => $q->where('category', 'semester')->where('semester', 2))->first();
+
+    // 1. Bayar Tunai Cash Registrasi (Full)
+    $regPayment->update([
+        'status' => 'paid',
+        'paid_amount' => $regPayment->amount,
+        'payment_method' => 'Tunai',
+        'payment_date' => now()->toDateString(),
+        'confirmed_at' => now(),
+        'confirmed_by' => $this->adminFakultasA->id,
+    ]);
+    PaymentHistory::create([
+        'student_payment_id' => $regPayment->id,
+        'action' => 'confirmed',
+        'old_status' => 'unpaid',
+        'new_status' => 'paid',
+        'amount' => $regPayment->amount,
+        'performed_by' => $this->adminFakultasA->id,
+    ]);
+
+    // 2. Bayar Semester 1 (Cicilan / Partial Transfer Bank)
+    $sem1Payment->update([
+        'status' => 'partial',
+        'paid_amount' => 500000,
+        'payment_method' => 'Transfer',
+        'payment_date' => now()->toDateString(),
+        'confirmed_at' => now(),
+        'confirmed_by' => $this->adminFakultasA->id,
+    ]);
+    PaymentHistory::create([
+        'student_payment_id' => $sem1Payment->id,
+        'action' => 'partial_payment',
+        'old_status' => 'unpaid',
+        'new_status' => 'partial',
+        'amount' => 500000,
+        'performed_by' => $this->adminFakultasA->id,
+    ]);
+
+    // 3. Bayar Semester 2 (Midtrans VA Settlement)
+    $sem2Payment->update([
+        'status' => 'paid',
+        'paid_amount' => $sem2Payment->amount,
+        'payment_method' => 'Virtual Account BCA (Midtrans)',
+        'midtrans_order_id' => 'ORDER-TEST-VA-123',
+        'midtrans_payment_type' => 'bca_va',
+        'payment_date' => now()->toDateString(),
+        'confirmed_at' => now(),
+    ]);
+    PaymentHistory::create([
+        'student_payment_id' => $sem2Payment->id,
+        'action' => 'midtrans_settlement',
+        'old_status' => 'unpaid',
+        'new_status' => 'paid',
+        'amount' => $sem2Payment->amount,
+        'reference_number' => 'ORDER-TEST-VA-123',
+        'notes' => 'Notifikasi Midtrans: SETTLEMENT | Metode: bca_va',
+    ]);
+
+    // Akses Dashboard
+    $dashboardResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.dashboard'));
+    $dashboardResponse->assertSuccessful();
+
+    // Pastikan label channel di weekly chart terlihat
+    $dashboardResponse->assertSee('Cash (Tunai)');
+    $dashboardResponse->assertSee('Transfer Bank');
+    $dashboardResponse->assertSee('VA / Midtrans');
+    $dashboardResponse->assertSee('Total Sudah Lunas / Terbayar');
+
+    // Nominal lunas harus mencakup pembayaran registrasi, cicilan semester 1, dan pelunasan semester 2
+    $expectedTotalNominal = (float) $regPayment->amount + 500000 + (float) $sem2Payment->amount;
+    $dashboardResponse->assertSee('Rp '.number_format($expectedTotalNominal, 0, ',', '.'));
+
+    // Ekspor PDF dengan query parameter
+    $exportResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.export', [
+        'prodi_id' => $this->prodiA->id,
+        'angkatan' => 2024,
+    ]));
+    $exportResponse->assertSuccessful();
+    $exportResponse->assertHeader('content-type', 'application/pdf');
+
+    // Ekspor CSV dengan query parameter
+    $exportCsvResponse = $this->actingAs($this->adminFakultasA)->get(route('admin.payments.export', [
+        'prodi_id' => $this->prodiA->id,
+        'format' => 'csv',
+    ]));
+    $exportCsvResponse->assertSuccessful();
+    $exportCsvResponse->assertHeader('content-type', 'text/csv; charset=UTF-8');
+});

@@ -324,9 +324,15 @@ class PaymentService
 
         $totalTagihan = (clone $query)->count();
         $totalLunas = (clone $query)->where('status', 'paid')->count();
-        $totalBelumLunas = (clone $query)->where('status', 'unpaid')->count();
-        $totalNominalLunas = (clone $query)->where('status', 'paid')->sum('paid_amount');
-        $totalTunggakan = (clone $query)->where('status', 'unpaid')->sum('amount');
+        $totalCicilan = (clone $query)->where('status', 'partial')->count();
+        $totalBelumLunas = (clone $query)->whereIn('status', ['unpaid', 'pending'])->count();
+        $totalNominalLunas = (clone $query)->sum('paid_amount');
+
+        // Total sisa tunggakan yang belum terbayar:
+        // Tagihan unpaid/pending (sebesar amount) + sisa tagihan partial (amount - paid_amount)
+        $tunggakanUnpaid = (clone $query)->whereIn('status', ['unpaid', 'pending'])->sum('amount');
+        $tunggakanPartial = (clone $query)->where('status', 'partial')->selectRaw('COALESCE(SUM(amount - paid_amount), 0) as sisa')->value('sisa');
+        $totalTunggakan = (float) $tunggakanUnpaid + (float) $tunggakanPartial;
 
         // Total distinct students
         $totalMahasiswaQuery = Mahasiswa::query();
@@ -345,20 +351,68 @@ class PaymentService
         $today = now()->toDateString();
         $thisMonth = now()->format('Y-m');
 
-        $pembayaranHariIni = (clone $query)
-            ->where('status', 'paid')
-            ->whereDate('payment_date', $today)
-            ->sum('paid_amount');
+        $validActions = [
+            'confirmed',
+            'partial_payment',
+            'midtrans_settlement',
+            'midtrans_capture',
+            'midtrans_partial_settlement',
+        ];
 
-        $pembayaranBulanIni = (clone $query)
-            ->where('status', 'paid')
-            ->where('payment_date', 'like', "{$thisMonth}%")
-            ->sum('paid_amount');
+        $hasHistories = PaymentHistory::whereDate('created_at', $today)->where('amount', '>', 0)->exists();
+
+        if ($hasHistories) {
+            $baseHistoryQuery = PaymentHistory::where('amount', '>', 0)
+                ->where(function ($q) use ($validActions) {
+                    $q->whereIn('action', $validActions)
+                        ->orWhere(function ($sub) {
+                            $sub->where('action', 'like', 'midtrans_%')
+                                ->whereNotIn('action', [
+                                    'midtrans_initiated',
+                                    'midtrans_expire',
+                                    'midtrans_cancel',
+                                    'midtrans_deny',
+                                    'midtrans_pending',
+                                ]);
+                        });
+                })
+                ->whereHas('payment', function ($q) use ($fakultasId, $filters) {
+                    if ($fakultasId) {
+                        $q->forFakultas($fakultasId);
+                    }
+                    if (! empty($filters['prodi_id'])) {
+                        $q->whereHas('mahasiswa', fn ($mq) => $mq->where('prodi_id', $filters['prodi_id']));
+                    }
+                    if (! empty($filters['angkatan'])) {
+                        $q->whereHas('mahasiswa', fn ($mq) => $mq->where('angkatan', $filters['angkatan']));
+                    }
+                    if (! empty($filters['semester'])) {
+                        $q->whereHas('paymentType', fn ($pq) => $pq->where('semester', $filters['semester']));
+                    }
+                    if (! empty($filters['payment_type_id'])) {
+                        $q->where('payment_type_id', $filters['payment_type_id']);
+                    }
+                });
+
+            $pembayaranHariIni = (clone $baseHistoryQuery)->whereDate('created_at', $today)->sum('amount');
+            $pembayaranBulanIni = (clone $baseHistoryQuery)->whereYear('created_at', now()->year)->whereMonth('created_at', now()->month)->sum('amount');
+        } else {
+            $pembayaranHariIni = (clone $query)
+                ->whereIn('status', ['paid', 'partial'])
+                ->whereDate('payment_date', $today)
+                ->sum('paid_amount');
+
+            $pembayaranBulanIni = (clone $query)
+                ->whereIn('status', ['paid', 'partial'])
+                ->where('payment_date', 'like', "{$thisMonth}%")
+                ->sum('paid_amount');
+        }
 
         return [
             'total_mahasiswa' => $totalMahasiswa,
             'total_tagihan' => $totalTagihan,
             'total_lunas' => $totalLunas,
+            'total_cicilan' => $totalCicilan,
             'total_belum_lunas' => $totalBelumLunas,
             'total_nominal_lunas' => (float) $totalNominalLunas,
             'total_tunggakan' => (float) $totalTunggakan,

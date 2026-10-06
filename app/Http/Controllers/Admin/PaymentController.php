@@ -552,6 +552,10 @@ class PaymentController extends Controller
             $query->whereHas('mahasiswa', fn ($q) => $q->where('angkatan', $angkatan));
         }
 
+        if ($semester = $request->get('semester')) {
+            $query->whereHas('paymentType', fn ($q) => $q->where('semester', $semester));
+        }
+
         if ($paymentTypeId = $request->get('payment_type_id')) {
             $query->where('payment_type_id', $paymentTypeId);
         }
@@ -596,16 +600,7 @@ class PaymentController extends Controller
         }
 
         // PDF: only show records that have been paid (paid_amount > 0), sorted by payment_date desc
-        $payments = StudentPayment::with([
-            'mahasiswa.user',
-            'mahasiswa.prodi',
-            'paymentType',
-            'confirmedBy',
-        ])
-            ->when($fakultasId, fn ($q) => $q->forFakultas($fakultasId))
-            ->when($request->get('prodi_id'), fn ($q, $v) => $q->whereHas('mahasiswa', fn ($sq) => $sq->where('prodi_id', $v)))
-            ->when($request->get('angkatan'), fn ($q, $v) => $q->whereHas('mahasiswa', fn ($sq) => $sq->where('angkatan', $v)))
-            ->when($request->get('payment_type_id'), fn ($q, $v) => $q->where('payment_type_id', $v))
+        $payments = (clone $query)
             ->where('paid_amount', '>', 0)
             ->orderBy('payment_date', 'desc')
             ->orderBy('created_at', 'desc')

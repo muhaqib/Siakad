@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\JadwalKuliah;
+use App\Models\Kelas;
 use App\Models\Notification;
 use App\Models\User;
-use App\Models\Kelas;
-use App\Models\JadwalKuliah;
 use Illuminate\Support\Collection;
 
 class NotificationService
@@ -34,6 +34,7 @@ class NotificationService
             $this->send($user, $type, $title, $message, $data);
             $count++;
         }
+
         return $count;
     }
 
@@ -66,7 +67,7 @@ class NotificationService
         }
 
         $title = "Perubahan Jadwal: {$kelas->mataKuliah->nama_mk}";
-        $message = "Jadwal kelas {$kelas->nama_kelas} telah diubah.\n" . implode("\n", $changeDesc);
+        $message = "Jadwal kelas {$kelas->nama_kelas} telah diubah.\n".implode("\n", $changeDesc);
 
         $data = [
             'kelas_id' => $kelas->id,
@@ -115,5 +116,21 @@ class NotificationService
     public function markAsRead(Notification $notification): void
     {
         $notification->markAsRead();
+    }
+
+    /**
+     * Hapus satu notifikasi
+     */
+    public function delete(Notification $notification): bool
+    {
+        return (bool) $notification->delete();
+    }
+
+    /**
+     * Hapus semua notifikasi untuk user
+     */
+    public function clearAllForUser(User $user): int
+    {
+        return Notification::where('user_id', $user->id)->delete();
     }
 }

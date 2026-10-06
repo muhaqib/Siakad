@@ -9,7 +9,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
         'name',
@@ -17,6 +17,9 @@ class User extends Authenticatable
         'password',
         'role',
         'fakultas_id',
+        'google_id',
+        'google_email',
+        'google_avatar',
     ];
 
     protected $hidden = [

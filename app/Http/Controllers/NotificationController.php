@@ -41,6 +41,7 @@ class NotificationController extends Controller
     public function unreadCount()
     {
         $count = $this->notificationService->getUnreadCount(Auth::user());
+
         return response()->json(['count' => $count]);
     }
 
@@ -78,5 +79,40 @@ class NotificationController extends Controller
         }
 
         return redirect()->back()->with('success', "{$count} notifikasi ditandai dibaca");
+    }
+
+    /**
+     * Delete a notification
+     */
+    public function destroy(Request $request, Notification $notification)
+    {
+        if ($notification->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $this->notificationService->delete($notification);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect()->back()->with('success', 'Notifikasi berhasil dihapus');
+    }
+
+    /**
+     * Clear all notifications for current user
+     */
+    public function clearAll(Request $request)
+    {
+        $count = $this->notificationService->clearAllForUser(Auth::user());
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'deleted_count' => $count,
+            ]);
+        }
+
+        return redirect()->back()->with('success', "{$count} notifikasi berhasil dihapus");
     }
 }

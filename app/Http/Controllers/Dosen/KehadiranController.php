@@ -3,38 +3,32 @@
 namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dosen\AbsenMasukRequest;
 use App\Models\KehadiranDosen;
-use App\Models\JadwalKuliah;
+use App\Services\KehadiranDosenService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\View\View;
 
 class KehadiranController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(private KehadiranDosenService $kehadiranDosenService) {}
+
+    /**
+     * Riwayat & rekap kehadiran. Absen masuk/keluar dilakukan dari dashboard.
+     */
+    public function index(Request $request): View
     {
         $dosen = Auth::user()->dosen;
-        $month = $request->get('month', now()->month);
-        $year = $request->get('year', now()->year);
+        $month = (int) $request->get('month', now()->month);
+        $year = (int) $request->get('year', now()->year);
+        $search = $request->get('search');
 
-        // Get jadwal for today
-        $today = now();
-        $dayName = $today->locale('id')->dayName;
-        $dayMap = ['Minggu' => 0, 'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3, 'Kamis' => 4, 'Jumat' => 5, 'Sabtu' => 6];
-        $todayIndex = $dayMap[$dayName] ?? $today->dayOfWeek;
+        $absenHariIni = $this->kehadiranDosenService->getAbsenHariIni($dosen);
+        $jadwalHariIni = $this->kehadiranDosenService->getJadwalHariIni($dosen);
+        $kelasBelumPresensi = $this->kehadiranDosenService->hitungKelasBelumPresensi($jadwalHariIni);
 
-        $jadwalHariIni = JadwalKuliah::whereHas('kelas', fn($q) => $q->where('dosen_id', $dosen->id))
-            ->where('hari', $todayIndex)
-            ->with('kelas.mataKuliah')
-            ->get();
-
-        // Kehadiran hari ini
-        $kehadiranHariIni = KehadiranDosen::where('dosen_id', $dosen->id)
-            ->whereDate('tanggal', $today)
-            ->pluck('jadwal_kuliah_id')
-            ->toArray();
-
-        // Stats bulan ini
         $stats = KehadiranDosen::where('dosen_id', $dosen->id)
             ->byMonth($year, $month)
             ->selectRaw('status, COUNT(*) as count')
@@ -42,52 +36,65 @@ class KehadiranController extends Controller
             ->pluck('count', 'status')
             ->toArray();
 
-        // Riwayat
-        $riwayat = KehadiranDosen::where('dosen_id', $dosen->id)
+        $riwayatQuery = KehadiranDosen::where('dosen_id', $dosen->id)
             ->byMonth($year, $month)
             ->with('jadwalKuliah.kelas.mataKuliah')
             ->orderBy('tanggal', 'desc')
-            ->get();
+            ->orderBy('jam_masuk', 'desc');
 
-        return view('dosen.kehadiran.index', compact('dosen', 'jadwalHariIni', 'kehadiranHariIni', 'stats', 'riwayat', 'month', 'year'));
+        if ($search) {
+            $riwayatQuery->where(function ($q) use ($search) {
+                $q->whereHas('jadwalKuliah.kelas.mataKuliah', function ($mq) use ($search) {
+                    $mq->where('nama_mk', 'like', "%{$search}%");
+                })->orWhere('keterangan', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
+            });
+        }
+
+        $riwayat = $riwayatQuery->get();
+
+        return view('dosen.kehadiran.index', compact(
+            'dosen',
+            'absenHariIni',
+            'jadwalHariIni',
+            'kelasBelumPresensi',
+            'stats',
+            'riwayat',
+            'month',
+            'year',
+            'search'
+        ));
     }
 
-    public function store(Request $request)
+    /**
+     * Absen masuk harian (hadir / sakit / izin / tugas luar).
+     */
+    public function store(AbsenMasukRequest $request): RedirectResponse
     {
-        $dosen = Auth::user()->dosen;
-
-        $validated = $request->validate([
-            'jadwal_kuliah_id' => 'required|exists:jadwal_kuliah,id',
-            'jam_masuk' => 'nullable|date_format:H:i',
-            'jam_keluar' => 'nullable|date_format:H:i',
-            'status' => 'required|in:' . implode(',', array_keys(KehadiranDosen::getStatusList())),
-            'keterangan' => 'nullable|string',
-        ]);
-
-        KehadiranDosen::updateOrCreate(
-            [
-                'dosen_id' => $dosen->id,
-                'jadwal_kuliah_id' => $validated['jadwal_kuliah_id'],
-                'tanggal' => now()->toDateString(),
-            ],
-            [
-                'jam_masuk' => $validated['jam_masuk'] ?? now()->format('H:i'),
-                'jam_keluar' => $validated['jam_keluar'] ?? null,
-                'status' => $validated['status'],
-                'keterangan' => $validated['keterangan'] ?? null,
-            ]
+        $kehadiran = $this->kehadiranDosenService->absenMasuk(
+            $request->user()->dosen,
+            $request->validated(),
+            $request->file('bukti_file'),
         );
 
-        return redirect()->back()->with('success', 'Kehadiran berhasil dicatat');
+        $message = $kehadiran->isHadir()
+            ? 'Absen masuk berhasil. Selamat mengajar!'
+            : 'Kehadiran tercatat sebagai '.$kehadiran->status_label.'.';
+
+        return redirect()->back(fallback: route('dosen.dashboard'))->with('success', $message);
     }
 
-    public function checkout(Request $request, KehadiranDosen $kehadiran)
+    /**
+     * Absen keluar harian.
+     */
+    public function checkout(KehadiranDosen $kehadiran): RedirectResponse
     {
-        $dosen = Auth::user()->dosen;
-        if ($kehadiran->dosen_id !== $dosen->id) abort(403);
+        if ($kehadiran->dosen_id !== Auth::user()->dosen?->id) {
+            abort(403);
+        }
 
-        $kehadiran->update(['jam_keluar' => now()->format('H:i:s')]);
+        $this->kehadiranDosenService->absenKeluar($kehadiran);
 
-        return redirect()->back()->with('success', 'Checkout berhasil');
+        return redirect()->back(fallback: route('dosen.dashboard'))->with('success', 'Absen keluar berhasil. Terima kasih!');
     }
 }

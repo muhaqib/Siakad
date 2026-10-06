@@ -28,9 +28,13 @@ class KehadiranDosen extends Model
     ];
 
     const STATUS_HADIR = 'hadir';
+
     const STATUS_IZIN = 'izin';
+
     const STATUS_SAKIT = 'sakit';
+
     const STATUS_TUGAS = 'tugas';
+
     const STATUS_ALPA = 'alpa';
 
     public static function getStatusList(): array
@@ -44,9 +48,29 @@ class KehadiranDosen extends Model
         ];
     }
 
+    /**
+     * Status yang bisa dipilih dosen saat absen masuk harian.
+     *
+     * @return array<string, string>
+     */
+    public static function getAbsenHarianStatusList(): array
+    {
+        return [
+            self::STATUS_HADIR => 'Hadir',
+            self::STATUS_SAKIT => 'Sakit',
+            self::STATUS_IZIN => 'Izin',
+            self::STATUS_TUGAS => 'Tugas Luar',
+        ];
+    }
+
+    public function isHadir(): bool
+    {
+        return $this->status === self::STATUS_HADIR;
+    }
+
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             self::STATUS_HADIR => 'emerald',
             self::STATUS_IZIN => 'blue',
             self::STATUS_SAKIT => 'amber',
@@ -84,5 +108,13 @@ class KehadiranDosen extends Model
     public function scopeByMonth($query, $year, $month)
     {
         return $query->whereYear('tanggal', $year)->whereMonth('tanggal', $month);
+    }
+
+    /**
+     * Absen harian (bukan absen per jadwal kuliah).
+     */
+    public function scopeHarian($query)
+    {
+        return $query->whereNull('jadwal_kuliah_id');
     }
 }

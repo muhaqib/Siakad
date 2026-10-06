@@ -225,6 +225,11 @@ class DatabaseSeeder extends Seeder
         }
 
         // ==========================================
+        // 8. DUMMY DATA LENGKAP (Kelas, Jadwal, KRS, Pertemuan, Presensi, Nilai, dll)
+        // ==========================================
+        $this->call(DummyDataSeeder::class);
+
+        // ==========================================
         // OUTPUT
         // ==========================================
         $this->command->newLine();

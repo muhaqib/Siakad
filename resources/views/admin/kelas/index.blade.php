@@ -295,6 +295,7 @@
                                     <option value="Kamis">Kamis</option>
                                     <option value="Jumat">Jumat</option>
                                     <option value="Sabtu">Sabtu</option>
+                                    <option value="Ahad">Ahad</option>
                                 </select>
                             </div>
                             <div>
@@ -375,6 +376,7 @@
                                     <option value="Kamis">Kamis</option>
                                     <option value="Jumat">Jumat</option>
                                     <option value="Sabtu">Sabtu</option>
+                                    <option value="Ahad">Ahad</option>
                                 </select>
                             </div>
                             <div>

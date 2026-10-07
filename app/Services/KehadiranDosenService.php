@@ -15,7 +15,7 @@ class KehadiranDosenService
     /**
      * @var array<int, string>
      */
-    private const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    private const NAMA_HARI = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     public function namaHari(?Carbon $tanggal = null): string
     {
@@ -39,10 +39,12 @@ class KehadiranDosenService
     public function getJadwalHariIni(Dosen $dosen): Collection
     {
         $today = now()->toDateString();
+        $hari = $this->namaHari();
+        $hariList = in_array($hari, ['Ahad', 'Minggu']) ? ['Ahad', 'Minggu'] : [$hari];
 
         return JadwalKuliah::query()
             ->whereHas('kelas', fn ($query) => $query->where('dosen_id', $dosen->id))
-            ->where('hari', $this->namaHari())
+            ->whereIn('hari', $hariList)
             ->with([
                 'kelas' => fn ($query) => $query->withCount('krsDetail'),
                 'kelas.mataKuliah',

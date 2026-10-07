@@ -80,12 +80,13 @@ class DashboardController extends Controller
         // Kelas dengan jadwal hari ini
         $hariMapping = [
             'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
-            'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu',
+            'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Ahad',
         ];
         $hariIni = $hariMapping[now()->format('l')] ?? now()->format('l');
+        $hariAliases = in_array($hariIni, ['Ahad', 'Minggu']) ? ['Ahad', 'Minggu'] : [$hariIni];
 
-        $kelasHariIni = $kelasList->filter(function ($kelas) use ($hariIni) {
-            return $kelas->jadwal->contains('hari', $hariIni);
+        $kelasHariIni = $kelasList->filter(function ($kelas) use ($hariAliases) {
+            return $kelas->jadwal->whereIn('hari', $hariAliases)->isNotEmpty();
         });
 
         // Absensi harian dosen

@@ -188,3 +188,21 @@ it('filters kehadiran history on index page', function () {
     $response->assertSuccessful();
     $response->assertSee('Mengajar Fiqih');
 });
+
+it('shows attendance widget and today schedule on dashboard when scheduled on Ahad', function () {
+    Carbon::setTestNow(Carbon::parse('2026-10-04 10:00:00')); // Hari Ahad / Sunday
+
+    JadwalKuliah::create([
+        'kelas_id' => $this->kelas->id,
+        'hari' => 'Ahad',
+        'jam_mulai' => '10:00',
+        'jam_selesai' => '11:40',
+        'ruangan' => 'R-Ahad-101',
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('dosen.dashboard'));
+
+    $response->assertSuccessful();
+    $response->assertSee('Absensi Hari Ini');
+    $response->assertSee('Ada 1 kelas yang harus Anda ajar hari ini.');
+});

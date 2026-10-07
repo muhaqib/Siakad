@@ -85,3 +85,51 @@ test('admin can update kelas and its jadwal ruangan', function () {
         'ruangan' => 'Lab Komputer',
     ]);
 });
+
+test('admin can create and update kelas with jadwal on hari Ahad', function () {
+    $fakultas = Fakultas::create(['nama' => 'Tarbiyah', 'kode' => 'TAR']);
+    $prodi = Prodi::create(['nama' => 'Pendidikan Agama Islam', 'kode' => 'PAI', 'jenjang' => 'S1', 'fakultas_id' => $fakultas->id]);
+    $tahunAkademik = TahunAkademik::create(['tahun' => '2026/2027', 'semester' => 'Ganjil', 'is_active' => true]);
+    $userDosen = User::factory()->create(['role' => 'dosen']);
+    $dosen = Dosen::create(['user_id' => $userDosen->id, 'nidn' => '1234567890', 'prodi_id' => $prodi->id]);
+    $mataKuliah = MataKuliah::create(['kode_mk' => 'MK002', 'nama_mk' => 'Akhlak', 'sks' => 2, 'semester' => 1, 'prodi_id' => $prodi->id]);
+
+    $createResponse = $this->actingAs($this->admin)->post(route('admin.kelas.store'), [
+        'mata_kuliah_id' => $mataKuliah->id,
+        'dosen_id' => $dosen->id,
+        'nama_kelas' => 'Akhlak 1A',
+        'kapasitas' => 25,
+        'hari' => 'Ahad',
+        'jam_mulai' => '09:00',
+        'jam_selesai' => '11:00',
+        'ruangan' => 'R-Ahad',
+    ]);
+
+    $createResponse->assertSessionHas('success');
+
+    $this->assertDatabaseHas('jadwal_kuliah', [
+        'hari' => 'Ahad',
+        'ruangan' => 'R-Ahad',
+    ]);
+
+    $kelas = Kelas::where('nama_kelas', 'Akhlak 1A')->first();
+
+    $updateResponse = $this->actingAs($this->admin)->put(route('admin.kelas.update', $kelas), [
+        'mata_kuliah_id' => $mataKuliah->id,
+        'dosen_id' => $dosen->id,
+        'nama_kelas' => 'Akhlak 1A Edited',
+        'kapasitas' => 30,
+        'hari' => 'Ahad',
+        'jam_mulai' => '10:00',
+        'jam_selesai' => '12:00',
+        'ruangan' => 'R-Ahad-2',
+    ]);
+
+    $updateResponse->assertSessionHas('success');
+
+    $this->assertDatabaseHas('jadwal_kuliah', [
+        'kelas_id' => $kelas->id,
+        'hari' => 'Ahad',
+        'ruangan' => 'R-Ahad-2',
+    ]);
+});

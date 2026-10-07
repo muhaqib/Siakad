@@ -233,7 +233,12 @@
                         <td style="text-align: center;">{{ $index + 1 }}</td>
                         <td>{{ strtoupper($item['name']) }} (Rp {{ number_format($item['amount'], 0, ',', '.') }})</td>
                         <td style="text-align: right; font-weight: bold;">{{ number_format($item['paid_amount'], 0, ',', '.') }}</td>
-                        <td style="text-align: center;">{{ !empty($item['notes']) && !str_starts_with($item['notes'], 'Kewajiban') ? $item['notes'] : '-' }}</td>
+                        <td style="text-align: center;">
+                            @php
+                                $cleanNote = trim(explode('|', $item['notes'] ?? '')[0]);
+                            @endphp
+                            {{ (!empty($cleanNote) && !str_starts_with($cleanNote, 'Kewajiban') && !str_starts_with($cleanNote, 'Tagihan') && !str_starts_with($cleanNote, 'Ref:')) ? $cleanNote : '-' }}
+                        </td>
                         <td style="text-align: right;">{{ number_format($item['remaining_amount'], 0, ',', '.') }}</td>
                         <td style="text-align: center; font-weight: bold;">{{ strtoupper($item['status']) }}</td>
                     </tr>

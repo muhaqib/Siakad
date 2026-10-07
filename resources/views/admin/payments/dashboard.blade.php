@@ -1,22 +1,7 @@
 <x-app-layout>
-<x-slot name="header">
+    <x-slot name="header">
         Dashboard Pembayaran Mahasiswa
     </x-slot>
-
-    <!-- Page Title & Actions -->
-    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <h1 class="text-xl font-semibold text-siakad-dark dark:text-white hidden md:block">Dashboard Pembayaran Mahasiswa</h1>
-        </div>
-        <div class="flex items-center gap-3 flex-wrap">
-            <div class="flex items-center gap-2">
-            <a href="{{ route('admin.payments.export', request()->query()) }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                <svg class="w-4 h-4 text-siakad-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                <span>Ekspor Rekap</span>
-            </a>
-        </div>
-        </div>
-    </div>
 
     <!-- Filter Card -->
     <div class="card-saas p-4 mb-6 dark:bg-gray-800">
@@ -112,6 +97,9 @@
                     $pctLunas = $stats['total_tagihan'] > 0 ? round(($stats['total_lunas'] / $stats['total_tagihan']) * 100, 1) : 0;
                 @endphp
                 <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ $pctLunas }}% lunas</span>
+                 <a href="{{ route('admin.payments.export', request()->query()) }}" class="btn-ghost-saas px-3.5 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-2 bg-white dark:bg-gray-800 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                <svg class="w-4 h-4 text-siakad-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            </a>
             </div>
         </div>
 
@@ -231,7 +219,7 @@
                         Tren Pembayaran Mingguan
                     </h3>
                     <p class="text-xs text-siakad-secondary dark:text-gray-400 mt-0.5">
-                        Frekuensi transaksi via Cash, Transfer Bank, dan VA / Midtrans
+                        Frekuensi transaksi via Cash, Transfer Bank, dan Virtual Account
                     </p>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
@@ -245,7 +233,7 @@
                     </span>
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                         <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                        VA/Midtrans ({{ number_format($weeklyPayments['summary']['total_va_count']) }})
+                        Virtual Account ({{ number_format($weeklyPayments['summary']['total_va_count']) }})
                     </span>
                 </div>
             </div>
@@ -313,7 +301,7 @@
         }
 
         // =========================================================
-        // 2. Chart Tren Mingguan Pembayaran (Cash, Transfer, VA/Midtrans)
+        // 2. Chart Tren Mingguan Pembayaran (Cash, Transfer, VA)
         // =========================================================
         const weeklyCtx = document.getElementById('weeklyPaymentChart');
         if (weeklyCtx) {
@@ -349,7 +337,7 @@
                             maxBarThickness: 18,
                         },
                         {
-                            label: 'VA / Midtrans',
+                            label: 'Virtual Account',
                             data: vaData,
                             backgroundColor: '#8B5CF6',
                             borderRadius: 6,
@@ -398,7 +386,7 @@
                                     const trfAmt = new Intl.NumberFormat('id-ID').format(transferAmounts[idx] || 0);
                                     const vaAmt = new Intl.NumberFormat('id-ID').format(vaAmounts[idx] || 0);
                                     const totAmt = new Intl.NumberFormat('id-ID').format(totalAmounts[idx] || 0);
-                                    return `Nominal Cash: Rp ${cashAmt}\nNominal Transfer: Rp ${trfAmt}\nNominal VA/Midtrans: Rp ${vaAmt}\nTotal Minggu Ini: Rp ${totAmt}`;
+                                    return `Nominal Cash: Rp ${cashAmt}\nNominal Transfer: Rp ${trfAmt}\nNominal Virtual Account: Rp ${vaAmt}\nTotal Minggu Ini: Rp ${totAmt}`;
                                 }
                             }
                         }

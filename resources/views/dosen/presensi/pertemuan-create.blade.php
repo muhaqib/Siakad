@@ -81,8 +81,8 @@
 
                     <!-- Materi -->
                     <div>
-                        <label for="materi" class="block text-sm font-medium text-siakad-dark mb-2">Materi (Opsional)</label>
-                        <input type="text" name="materi" id="materi" 
+                        <label for="materi" class="block text-sm font-medium text-siakad-dark mb-2">Materi (Wajib)</label>
+                        <input type="text" name="materi" id="materi" required maxlength="255" 
                             value="{{ old('materi') }}"
                             placeholder="Topik atau materi yang dibahas"
                             class="w-full px-4 py-3 rounded-lg border border-siakad-light bg-white text-siakad-dark placeholder:text-siakad-secondary focus:border-siakad-primary focus:ring-2 focus:ring-siakad-primary/20 transition">

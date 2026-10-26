@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Dosen;
 
 use App\Http\Controllers\Controller;
-use App\Models\Kelas;
+use App\Http\Requests\Dosen\StorePertemuanRequest;
 use App\Models\JadwalKuliah;
+use App\Models\Kelas;
 use App\Models\Pertemuan;
 use App\Models\Presensi;
 use App\Services\PresensiService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,16 +28,16 @@ class PresensiController extends Controller
     public function index()
     {
         $dosen = Auth::user()->dosen;
-        
-        if (!$dosen) {
+
+        if (! $dosen) {
             abort(403, 'Unauthorized');
         }
 
         $kelasList = $this->presensiService->getKelasByDosen($dosen->id);
-        
+
         // Group by semester
-        $kelasGrouped = $kelasList->groupBy(fn($k) => $k->mataKuliah->semester ?? 0);
-        
+        $kelasGrouped = $kelasList->groupBy(fn ($k) => $k->mataKuliah->semester ?? 0);
+
         // Get semester list for filter
         $semesterList = $kelasList->pluck('mataKuliah.semester')->unique()->sort()->values();
 
@@ -48,7 +50,7 @@ class PresensiController extends Controller
     public function showKelas(Kelas $kelas)
     {
         $dosen = Auth::user()->dosen;
-        
+
         if ($kelas->dosen_id !== $dosen->id) {
             abort(403, 'Anda tidak memiliki akses ke kelas ini');
         }
@@ -66,7 +68,7 @@ class PresensiController extends Controller
     public function createPertemuan(Kelas $kelas)
     {
         $dosen = Auth::user()->dosen;
-        
+
         if ($kelas->dosen_id !== $dosen->id) {
             abort(403, 'Anda tidak memiliki akses ke kelas ini');
         }
@@ -74,7 +76,7 @@ class PresensiController extends Controller
         $kelas->load(['mataKuliah', 'jadwal']);
         $jadwalList = $kelas->jadwal;
         $nextPertemuanKe = [];
-        
+
         foreach ($jadwalList as $jadwal) {
             $nextPertemuanKe[$jadwal->id] = $this->presensiService->getNextPertemuanKe($jadwal->id);
         }
@@ -85,20 +87,15 @@ class PresensiController extends Controller
     /**
      * Simpan pertemuan baru
      */
-    public function storePertemuan(Request $request, Kelas $kelas)
+    public function storePertemuan(StorePertemuanRequest $request, Kelas $kelas)
     {
         $dosen = Auth::user()->dosen;
-        
+
         if ($kelas->dosen_id !== $dosen->id) {
             abort(403, 'Anda tidak memiliki akses ke kelas ini');
         }
 
-        $validated = $request->validate([
-            'jadwal_kuliah_id' => 'required|exists:jadwal_kuliah,id',
-            'pertemuan_ke' => 'required|integer|min:1|max:16',
-            'tanggal' => 'required|date',
-            'materi' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         // Check jadwal belongs to this kelas
         $jadwal = JadwalKuliah::findOrFail($validated['jadwal_kuliah_id']);
@@ -112,7 +109,7 @@ class PresensiController extends Controller
             ->exists();
 
         if ($exists) {
-            return back()->withErrors(['pertemuan_ke' => 'Pertemuan ke-' . $validated['pertemuan_ke'] . ' sudah ada'])
+            return back()->withErrors(['pertemuan_ke' => 'Pertemuan ke-'.$validated['pertemuan_ke'].' sudah ada'])
                 ->withInput();
         }
 
@@ -127,6 +124,19 @@ class PresensiController extends Controller
             ->with('success', 'Pertemuan berhasil dibuat. Silakan input presensi.');
     }
 
+    public function destroyPertemuan(Pertemuan $pertemuan): RedirectResponse
+    {
+        $kelas = $pertemuan->jadwalKuliah->kelas;
+        $dosen = Auth::user()->dosen;
+
+        abort_unless($dosen && $kelas->dosen_id === $dosen->id, 403, 'Anda tidak memiliki akses ke pertemuan ini');
+
+        $pertemuan->delete();
+
+        return redirect()->route('dosen.presensi.kelas', $kelas)
+            ->with('success', 'Pertemuan dan presensi terkait berhasil dihapus.');
+    }
+
     /**
      * Form input presensi
      */
@@ -134,14 +144,14 @@ class PresensiController extends Controller
     {
         $dosen = Auth::user()->dosen;
         $kelas = $pertemuan->jadwalKuliah->kelas;
-        
+
         if ($kelas->dosen_id !== $dosen->id) {
             abort(403, 'Anda tidak memiliki akses ke pertemuan ini');
         }
 
         $pertemuan->load(['jadwalKuliah.kelas.mataKuliah', 'presensi']);
         $mahasiswaList = $this->presensiService->getMahasiswaByKelas($kelas->id);
-        
+
         // Get existing presensi data
         $existingPresensi = $pertemuan->presensi->keyBy('mahasiswa_id');
 
@@ -155,7 +165,7 @@ class PresensiController extends Controller
     {
         $dosen = Auth::user()->dosen;
         $kelas = $pertemuan->jadwalKuliah->kelas;
-        
+
         if ($kelas->dosen_id !== $dosen->id) {
             abort(403, 'Anda tidak memiliki akses ke pertemuan ini');
         }

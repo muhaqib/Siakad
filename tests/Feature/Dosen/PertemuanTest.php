@@ -67,7 +67,8 @@ it('forbids creating a meeting in another lecturers class', function () {
 it('shows the delete action and required material field', function () {
     $this->withoutVite();
     $this->actingAs($this->dosen->user)->get(route('dosen.presensi.kelas', $this->kelas))->assertSuccessful()
-        ->assertSee(route('dosen.presensi.pertemuan.destroy', $this->pertemuan), false)->assertSee('Hapus');
+        ->assertSee(route('dosen.presensi.pertemuan.destroy', $this->pertemuan), false)->assertSee('aria-label="Hapus pertemuan 1"', false)
+        ->assertSee('title="Hapus pertemuan"', false)->assertDontSee('>Hapus</button>', false);
     $this->get(route('dosen.presensi.pertemuan.create', $this->kelas))->assertSuccessful()
         ->assertSee('Materi (Wajib)')->assertSee('id="materi" required', false)->assertDontSee('Materi (Opsional)');
 });

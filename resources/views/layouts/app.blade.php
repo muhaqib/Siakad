@@ -550,11 +550,11 @@
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         <span class="sidebar-text">KHS / Nilai</span>
                     </a>
-                    <a href="{{ url('mahasiswa/skripsi') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('mahasiswa/skripsi*') ? 'active' : '' }}">
+                    <a href="{{ url('mahasiswa/skripsi') }}" class="sidebar-link hidden md:flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('mahasiswa/skripsi*') ? 'active' : '' }}">
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                         <span class="sidebar-text">Skripsi / TA</span>
                     </a>
-                    <a href="{{ url('mahasiswa/kp') }}" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('mahasiswa/kp*') ? 'active' : '' }}">
+                    <a href="{{ url('mahasiswa/kp') }}" class="sidebar-link hidden md:flex items-center gap-3 px-3 py-2.5 rounded-lg text-siakad-secondary text-sm font-medium {{ request()->is('mahasiswa/kp*') ? 'active' : '' }}">
                         <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         <span class="sidebar-text">Kerja Praktek</span>
                     </a>
@@ -775,7 +775,7 @@
 
         @if(Auth::user()->role === 'mahasiswa')
         <!-- Bottom Navigation (Mobile Only) -->
-        <nav class="fixed bottom-0 z-50 w-full bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700 md:hidden flex justify-around items-center h-16 pb-safe safe-area-bottom">
+        <nav id="student-mobile-navigation" aria-label="Navigasi mahasiswa" class="fixed bottom-0 z-50 w-full bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700 md:hidden flex justify-around items-center h-16 pb-safe safe-area-bottom">
             <a href="{{ url('mahasiswa/dashboard') }}" class="flex flex-col items-center justify-center w-full h-full text-[10px] font-medium {{ request()->is('mahasiswa/dashboard') ? 'text-siakad-primary dark:text-blue-400' : 'text-gray-500 dark:text-gray-400' }}">
                 <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                 <span>Beranda</span>
@@ -798,32 +798,32 @@
                 <span>Nilai</span>
             </a>
 
-            <button type="button" @click="$dispatch('open-mobile-menu')" class="flex flex-col items-center justify-center w-full h-full text-[10px] font-medium text-gray-500 dark:text-gray-400">
+            <button id="student-mobile-menu-button" type="button" aria-controls="student-mobile-menu" aria-haspopup="dialog" @click="$dispatch('open-mobile-menu')" class="flex flex-col items-center justify-center w-full h-full text-[10px] font-medium text-gray-500 dark:text-gray-400">
                 <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                 <span>Menu</span>
             </button>
         </nav>
 
         <!-- Mobile Menu Drawer -->
-        <div x-data="{ open: false }" @open-mobile-menu.window="open = true" @keydown.escape.window="open = false" x-show="open" class="relative z-50 md:hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true" style="display: none;">
+        <div id="student-mobile-menu" x-data="{ open: false }" @open-mobile-menu.window="open = true; $nextTick(() => $refs.closeMenu.focus())" @keydown.escape.window="if (open) { open = false; $nextTick(() => document.getElementById('student-mobile-menu-button').focus()); }" x-show="open" class="relative z-50 md:hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true" style="display: none;">
             <div x-show="open" x-transition:enter="ease-in-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="open = false"></div>
 
             <div class="fixed inset-x-0 bottom-0 overflow-hidden">
                 <div class="pointer-events-none fixed inset-x-0 bottom-0 flex max-h-full">
-                    <div x-show="open" x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full" class="pointer-events-auto w-screen max-w-md">
-                        <div class="flex h-full flex-col overflow-y-scroll bg-white dark:bg-gray-800 shadow-xl pb-20 rounded-t-2xl">
+                    <div x-show="open" x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0" x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full" class="pointer-events-auto w-screen">
+                        <div class="flex max-h-[85vh] flex-col overflow-y-auto overscroll-contain bg-white dark:bg-gray-800 shadow-xl pb-8 rounded-t-2xl">
                             <div class="px-4 py-6 sm:px-6">
-                                <div class="flex item-center justify-between">
+                                <div class="flex items-center justify-between">
                                     <h2 class="text-lg font-medium text-gray-900 dark:text-white" id="slide-over-title">Menu Lainnya</h2>
-                                    <button type="button" class="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 focus:outline-none" @click="open = false">
-                                        <span class="sr-only">Close panel</span>
+                                    <button x-ref="closeMenu" type="button" class="rounded-md bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 focus:outline-none" @click="open = false; $nextTick(() => document.getElementById('student-mobile-menu-button').focus())">
+                                        <span class="sr-only">Tutup menu</span>
                                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     </button>
                                 </div>
                             </div>
-                            <div class="relative flex-1 px-4 sm:px-6">
+                            <div class="relative px-4 sm:px-6">
                                 <div class="grid grid-cols-3 gap-4">
                                     <a href="{{ url('mahasiswa/payments') }}" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                                         <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2">
@@ -851,6 +851,20 @@
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                         </div>
                                         <span class="text-xs text-center font-medium text-gray-700 dark:text-gray-300">Biodata</span>
+                                    </a>
+
+                                    <a href="{{ route('mahasiswa.lms.index') }}" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                        </div>
+                                        <span class="text-xs text-center font-medium text-gray-700 dark:text-gray-300">Materi & Tugas</span>
+                                    </a>
+
+                                    <a href="{{ route('mahasiswa.ai-advisor.index') }}" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                        <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-2">
+                                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                                        </div>
+                                        <span class="text-xs text-center font-medium text-gray-700 dark:text-gray-300">AI Advisor</span>
                                     </a>
 
                                     <form method="POST" action="{{ route('logout') }}" class="block w-full">

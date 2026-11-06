@@ -86,28 +86,6 @@
         </div>
 
         <!-- Session alerts -->
-        @if(session('success'))
-            <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-sm flex items-center gap-3 shadow-sm">
-                <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                </div>
-                <div>
-                    <h5 class="font-bold text-xs uppercase tracking-wider text-emerald-800 dark:text-emerald-300">Transaksi Berhasil</h5>
-                    <p class="text-xs mt-0.5">{{ session('success') }}</p>
-                </div>
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-900 dark:text-red-200 text-sm flex items-center gap-3 shadow-sm">
-                <div class="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/60 text-red-600 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                </div>
-                <div>
-                    <h5 class="font-bold text-xs uppercase tracking-wider text-red-800 dark:text-red-300">Gagal Memproses</h5>
-                    <p class="text-xs mt-0.5">{{ session('error') }}</p>
-                </div>
-            </div>
-        @endif
 
         <!-- Visual Progress Summary Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">

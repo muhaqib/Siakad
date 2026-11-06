@@ -757,6 +757,9 @@
                 <!-- Page Content -->
                 <main class="p-4 md:p-8 pb-24 md:pb-8">
                     <!-- Flash Messages -->
+                    @if(Auth::user()->isAdmin())
+                        <x-flash-notification />
+                    @else
                     @if(session('success'))
                     <div class="mb-6 px-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm font-medium animate-fade-in">
                         {{ session('success') }}
@@ -766,6 +769,8 @@
                     <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-medium animate-fade-in">
                         {{ session('error') }}
                     </div>
+                    @endif
+
                     @endif
 
                     {{ $slot }}

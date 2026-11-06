@@ -27,19 +27,7 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-2">
-                <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                <span>{{ session('success') }}</span>
-            </div>
-        @endif
 
-        @if(session('error'))
-            <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-sm flex items-center gap-2">
-                <svg class="w-5 h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>{{ session('error') }}</span>
-            </div>
-        @endif
 
         <div class="card-saas overflow-hidden dark:bg-gray-800">
             <div class="p-4 border-b border-siakad-light dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between">
